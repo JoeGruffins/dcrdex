@@ -153,6 +153,6 @@ the client's absence. A list of any pending matches is included in the response.
 An API using HTTP for message transport may be provided for basic account
 management and server status queries, however websocket connections are to be
 the sole means for
-[[orders.mediawiki#Client_Order_Management|placing, monitoring, and executing orders]].
+[[orders.mediawiki/#Client_Order_Management|placing, monitoring, and executing orders]].
 The primary reason for limiting the scope of the HTTP API is to eliminate client
 polling for rapidly changing resources, such as order status API endpoints.

@@ -38,7 +38,7 @@ The '''rate''', '''''r''''', of a limit order must be an integer multiple of the
 
 The DEX operator specifies an on-chain transaction '''fee rate'''
 (units ''atoms/byte'') used when
-[[orders.mediawiki#Calculating_Transaction_Fees|calculating the fees]] for initialization
+[[orders.mediawiki/#Calculating_Transaction_Fees|calculating the fees]] for initialization
 transactions.
 
 Each asset has two distinct '''minimum numbers of confirmations'''.

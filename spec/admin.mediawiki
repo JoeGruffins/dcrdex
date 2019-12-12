@@ -30,7 +30,7 @@ possible.
 |-
 | lot&nbsp;size  || atoms ||  the minimum order quantity and the order quantity increment when an asset is the base asset
 |-
-| rate&nbsp;step || atoms || The minimum price rate and the price rate increment when an asset is the quote asset. [[orders.mediawiki#Rate_Encoding|message-rate encoding]]
+| rate&nbsp;step || atoms || The minimum price rate and the price rate increment when an asset is the quote asset. [[orders.mediawiki/#Rate_Encoding|message-rate encoding]]
 |-
 | fee&nbsp;rate  || atoms/byte || the minimum fee rate for swap transactions
 |-

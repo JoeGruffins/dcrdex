@@ -8,9 +8,9 @@ overview of the settlement process.
 
 There are three available types of order.
 
-* [[orders.mediawiki/#Limit_Order|Limit orders]] are used to buy or sell a specified amount of an asset at a rate no higher (buy) or lower (sell) than a specified price.
-* [[orders.mediawiki/#Market_Order|Market orders]] are used to buy or sell a specified amount of an asset at the best price available.
-* [[orders.mediawiki/#Cancel_Order|Cancel orders]] are used to remove standing limit orders from the order book.
+* [[#Limit_Order|Limit orders]] are used to buy or sell a specified amount of an asset at a rate no higher (buy) or lower (sell) than a specified price.
+* [[#Market_Order|Market orders]] are used to buy or sell a specified amount of an asset at the best price available.
+* [[#Cancel_Order|Cancel orders]] are used to remove standing limit orders from the order book.
 
 The order book holds only limit orders with time in force ''standing'' that have
 not completely filled or been cancelled. All other orders are only valid for one
