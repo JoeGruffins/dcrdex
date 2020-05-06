@@ -4,6 +4,7 @@
 package asset
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -18,7 +19,7 @@ var (
 // Driver is the interface required of all assets. Setup should create a
 // Backend, but not start the backend connection.
 type Driver interface {
-	Setup(configPath string, logger dex.Logger, network dex.Network) (Backend, error)
+	Setup(ctx context.Context, configPath string, logger dex.Logger, network dex.Network) (Backend, error)
 	DecodeCoinID(coinID []byte) (string, error)
 }
 
@@ -50,12 +51,12 @@ func Register(name string, driver Driver) {
 
 // Setup sets up the named asset. The RPC connection parameters are obtained
 // from the asset's configuration file located at configPath.
-func Setup(name, configPath string, logger dex.Logger, network dex.Network) (Backend, error) {
+func Setup(ctx context.Context, name, configPath string, logger dex.Logger, network dex.Network) (Backend, error) {
 	driversMtx.Lock()
 	drv, ok := drivers[name]
 	driversMtx.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("asset: unknown asset driver %q", name)
 	}
-	return drv.Setup(configPath, logger, network)
+	return drv.Setup(ctx, configPath, logger, network)
 }

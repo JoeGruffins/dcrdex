@@ -29,7 +29,7 @@ import (
 type Driver struct{}
 
 // Setup creates the BTC backend. Start the backend with its Run method.
-func (d *Driver) Setup(configPath string, logger dex.Logger, network dex.Network) (asset.Backend, error) {
+func (d *Driver) Setup(_ context.Context, configPath string, logger dex.Logger, network dex.Network) (asset.Backend, error) {
 	return NewBackend(configPath, logger, network)
 }
 

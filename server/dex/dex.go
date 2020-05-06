@@ -261,7 +261,7 @@ func NewDEX(cfg *DexConf) (*DEX, error) {
 		// asset symbol must be available.
 		log.Infof("Starting asset backend %q...", symbol)
 		logger := cfg.LogBackend.SubLogger("ASSET", symbol)
-		be, err := asset.Setup(symbol, assetConf.ConfigPath, logger, cfg.Network)
+		be, err := asset.Setup(ctx, symbol, assetConf.ConfigPath, logger, cfg.Network)
 		if err != nil {
 			abort()
 			return nil, fmt.Errorf("failed to setup asset %q: %v", symbol, err)

@@ -31,8 +31,8 @@ import (
 type Driver struct{}
 
 // Setup creates the DCR backend. Start the backend with its Run method.
-func (d *Driver) Setup(configPath string, logger dex.Logger, network dex.Network) (asset.Backend, error) {
-	return NewBackend(configPath, logger, network)
+func (d *Driver) Setup(ctx context.Context, configPath string, logger dex.Logger, network dex.Network) (asset.Backend, error) {
+	return NewBackend(ctx, configPath, logger, network)
 }
 
 // DecodeCoinID creates a human-readable representation of a coin ID for Decred.
@@ -104,7 +104,7 @@ var _ asset.Backend = (*Backend)(nil)
 // application exits. If configPath is an empty string, the backend will
 // attempt to read the settings directly from the dcrd config file in its
 // default system location.
-func NewBackend(configPath string, logger dex.Logger, network dex.Network) (*Backend, error) {
+func NewBackend(ctx context.Context, configPath string, logger dex.Logger, network dex.Network) (*Backend, error) {
 	// loadConfig will set fields if defaults are used and set the chainParams
 	// package variable.
 	cfg, err := loadConfig(configPath, network)
@@ -119,11 +119,9 @@ func NewBackend(configPath string, logger dex.Logger, network dex.Network) (*Bac
 	if err != nil {
 		return nil, err
 	}
-	ctx := context.TODO()
 	if err := dcr.client.Connect(ctx, false); err != nil {
 		return nil, err
 	}
-	defer dcr.shutdown()
 
 	// Ensure the network of the connected node is correct for the expected
 	// dex.Network.
@@ -404,10 +402,6 @@ func unconnectedDCR(logger dex.Logger) *Backend {
 // dcrd-registered handlers should perform any necessary type conversion and
 // then deposit the payload into the anyQ channel.
 func (dcr *Backend) Run(ctx context.Context) {
-	if err := dcr.client.Connect(ctx, true); err != nil {
-		dcr.log.Errorf("error connecting to dcrd: %v", err)
-		return
-	}
 	defer dcr.shutdown()
 	blockPoll := time.NewTicker(blockPollInterval)
 	defer blockPoll.Stop()
@@ -457,11 +451,13 @@ out:
 
 		case <-blockPoll.C:
 			tip := dcr.blockCache.tip()
+			fmt.Println("about to getbestblockhash")
 			bestHash, err := dcr.node.GetBestBlockHash(ctx)
 			if err != nil {
 				sendErr(asset.NewConnectionError("error retrieving best block: %v", err))
 				continue
 			}
+			fmt.Printf("getbestblockhash: %v\n", bestHash)
 			if *bestHash == tip.hash {
 				continue
 			}
