@@ -23,7 +23,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v2"
 	chainjson "github.com/decred/dcrd/rpc/jsonrpc/types/v2"
-	"github.com/decred/dcrd/rpcclient/v5"
+	"github.com/decred/dcrd/rpcclient/v6"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -66,11 +66,11 @@ const (
 // satisfied by rpcclient.Client, and all methods are matches for Client
 // methods. For testing, it can be satisfied by a stub.
 type dcrNode interface {
-	GetTxOut(txHash *chainhash.Hash, index uint32, mempool bool) (*chainjson.GetTxOutResult, error)
-	GetRawTransactionVerbose(txHash *chainhash.Hash) (*chainjson.TxRawResult, error)
-	GetBlockVerbose(blockHash *chainhash.Hash, verboseTx bool) (*chainjson.GetBlockVerboseResult, error)
-	GetBlockHash(blockHeight int64) (*chainhash.Hash, error)
-	GetBestBlockHash() (*chainhash.Hash, error)
+	GetTxOut(ctx context.Context, txHash *chainhash.Hash, index uint32, mempool bool) (*chainjson.GetTxOutResult, error)
+	GetRawTransactionVerbose(ctx context.Context, txHash *chainhash.Hash) (*chainjson.TxRawResult, error)
+	GetBlockVerbose(ctx context.Context, blockHash *chainhash.Hash, verboseTx bool) (*chainjson.GetBlockVerboseResult, error)
+	GetBlockHash(ctx context.Context, blockHeight int64) (*chainhash.Hash, error)
+	GetBestBlockHash(ctx context.Context) (*chainhash.Hash, error)
 }
 
 // Backend is an asset backend for Decred. It has methods for fetching UTXO
@@ -114,15 +114,20 @@ func NewBackend(configPath string, logger dex.Logger, network dex.Network) (*Bac
 	dcr := unconnectedDCR(logger)
 	// When the exported constructor is used, the node will be an
 	// rpcclient.Client.
-	dcr.client, err = connectNodeRPC(cfg.RPCListen, cfg.RPCUser, cfg.RPCPass,
+	dcr.client, err = nodeRPC(cfg.RPCListen, cfg.RPCUser, cfg.RPCPass,
 		cfg.RPCCert)
 	if err != nil {
 		return nil, err
 	}
+	ctx := context.TODO()
+	if err := dcr.client.Connect(ctx, false); err != nil {
+		return nil, err
+	}
+	defer dcr.shutdown()
 
 	// Ensure the network of the connected node is correct for the expected
 	// dex.Network.
-	net, err := dcr.client.GetCurrentNet()
+	net, err := dcr.client.GetCurrentNet(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getcurrentnet failure: %v", err)
 	}
@@ -141,7 +146,7 @@ func NewBackend(configPath string, logger dex.Logger, network dex.Network) (*Bac
 
 	dcr.node = dcr.client
 	// Prime the cache with the best block.
-	bestHash, _, err := dcr.client.GetBestBlock()
+	bestHash, _, err := dcr.client.GetBestBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting best block from dcrd: %v", err)
 	}
@@ -399,14 +404,11 @@ func unconnectedDCR(logger dex.Logger) *Backend {
 // dcrd-registered handlers should perform any necessary type conversion and
 // then deposit the payload into the anyQ channel.
 func (dcr *Backend) Run(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	// Shut down the RPC client on ctx.Done().
-	go func() {
-		<-ctx.Done()
-		dcr.shutdown()
-		wg.Done()
-	}()
+	if err := dcr.client.Connect(ctx, true); err != nil {
+		dcr.log.Errorf("error connecting to dcrd: %v", err)
+		return
+	}
+	defer dcr.shutdown()
 	blockPoll := time.NewTicker(blockPollInterval)
 	defer blockPoll.Stop()
 	addBlock := func(block *chainjson.GetBlockVerboseResult, reorg bool) {
@@ -455,7 +457,7 @@ out:
 
 		case <-blockPoll.C:
 			tip := dcr.blockCache.tip()
-			bestHash, err := dcr.node.GetBestBlockHash()
+			bestHash, err := dcr.node.GetBestBlockHash(ctx)
 			if err != nil {
 				sendErr(asset.NewConnectionError("error retrieving best block: %v", err))
 				continue
@@ -465,7 +467,7 @@ out:
 			}
 
 			best := bestHash.String()
-			block, err := dcr.node.GetBlockVerbose(bestHash, false)
+			block, err := dcr.node.GetBlockVerbose(ctx, bestHash, false)
 			if err != nil {
 				sendErrFmt("error retrieving block %s: %v", best, err)
 				continue
@@ -491,7 +493,7 @@ out:
 				if *iHash == zeroHash {
 					break
 				}
-				iBlock, err := dcr.node.GetBlockVerbose(iHash, false)
+				iBlock, err := dcr.node.GetBlockVerbose(ctx, iHash, false)
 				if err != nil {
 					sendErrFmt("error retrieving block %s: %v", iHash, err)
 					break
@@ -529,8 +531,6 @@ out:
 			break out
 		}
 	}
-	// Wait for the RPC client to shut down.
-	wg.Wait()
 }
 
 // validateTxOut validates an outpoint (txHash:out) by retrieving associated
@@ -662,7 +662,7 @@ func (dcr *Backend) utxo(txHash *chainhash.Hash, vout uint32, redeemScript []byt
 
 // input gets the transaction input.
 func (dcr *Backend) input(txHash *chainhash.Hash, vin uint32) (*Input, error) {
-	verboseTx, err := dcr.node.GetRawTransactionVerbose(txHash)
+	verboseTx, err := dcr.node.GetRawTransactionVerbose(context.TODO(), txHash)
 	if err != nil {
 		if isTxNotFoundErr(err) {
 			return nil, asset.CoinNotFoundError
@@ -700,7 +700,7 @@ func msgTxFromHex(txhex string) (*wire.MsgTx, error) {
 
 // Get information for an unspent transaction output.
 func (dcr *Backend) getUnspentTxOut(txHash *chainhash.Hash, vout uint32) (*chainjson.GetTxOutResult, []byte, error) {
-	txOut, err := dcr.node.GetTxOut(txHash, vout, true)
+	txOut, err := dcr.node.GetTxOut(context.TODO(), txHash, vout, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetTxOut error for output %s:%d: %v", txHash, vout, err) // TODO: make RPC error type for client message sanitization
 	}
@@ -721,7 +721,7 @@ func (dcr *Backend) getTxOutInfo(txHash *chainhash.Hash, vout uint32) (*chainjso
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	verboseTx, err := dcr.node.GetRawTransactionVerbose(txHash)
+	verboseTx, err := dcr.node.GetRawTransactionVerbose(context.TODO(), txHash)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("GetRawTransactionVerbose for txid %s: %v", txHash, err)
 	}
@@ -744,7 +744,7 @@ func (dcr *Backend) getDcrBlock(blockHash *chainhash.Hash) (*dcrBlock, error) {
 	if found {
 		return cachedBlock, nil
 	}
-	blockVerbose, err := dcr.node.GetBlockVerbose(blockHash, false)
+	blockVerbose, err := dcr.node.GetBlockVerbose(context.TODO(), blockHash, false)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving block %s: %v", blockHash, err)
 	}
@@ -757,7 +757,7 @@ func (dcr *Backend) getMainchainDcrBlock(height uint32) (*dcrBlock, error) {
 	if found {
 		return cachedBlock, nil
 	}
-	hash, err := dcr.node.GetBlockHash(int64(height))
+	hash, err := dcr.node.GetBlockHash(context.TODO(), int64(height))
 	if err != nil {
 		// Likely not mined yet. Not an error.
 		return nil, nil
@@ -765,9 +765,9 @@ func (dcr *Backend) getMainchainDcrBlock(height uint32) (*dcrBlock, error) {
 	return dcr.getDcrBlock(hash)
 }
 
-// connectNodeRPC attempts to create a new websocket connection to a dcrd node
+// nodeRPC attempts to create a new websocket connection to a dcrd node
 // with the given credentials and notification handlers.
-func connectNodeRPC(host, user, pass, cert string) (*rpcclient.Client, error) {
+func nodeRPC(host, user, pass, cert string) (*rpcclient.Client, error) {
 
 	dcrdCerts, err := ioutil.ReadFile(cert)
 	if err != nil {
@@ -775,16 +775,17 @@ func connectNodeRPC(host, user, pass, cert string) (*rpcclient.Client, error) {
 	}
 
 	config := &rpcclient.ConnConfig{
-		Host:         host,
-		Endpoint:     "ws", // websocket
-		User:         user,
-		Pass:         pass,
-		Certificates: dcrdCerts,
+		Host:                host,
+		Endpoint:            "ws", // websocket
+		User:                user,
+		Pass:                pass,
+		Certificates:        dcrdCerts,
+		DisableConnectOnNew: true,
 	}
 
 	dcrdClient, err := rpcclient.New(config, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start dcrd RPC client: %v", err)
+		return nil, fmt.Errorf("Failed to create dcrd RPC client: %v", err)
 	}
 
 	return dcrdClient, nil

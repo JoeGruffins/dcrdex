@@ -5,6 +5,7 @@ package dcr
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"decred.org/dcrdex/dex"
@@ -51,7 +52,7 @@ func (txio *TXIO) confirmations(checkApproval bool) (int64, error) {
 		// If the tip hasn't changed, don't do anything here.
 		if txio.lastLookup == nil || *txio.lastLookup != tipHash {
 			txio.lastLookup = &tipHash
-			verboseTx, err := txio.dcr.node.GetRawTransactionVerbose(&txio.tx.hash)
+			verboseTx, err := txio.dcr.node.GetRawTransactionVerbose(context.TODO(), &txio.tx.hash)
 			if err != nil {
 				return -1, fmt.Errorf("GetRawTransactionVerbose for txid %s: %v", txio.tx.hash, err)
 			}
