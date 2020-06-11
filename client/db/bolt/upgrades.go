@@ -100,16 +100,10 @@ func upgradeDB(db *bbolt.DB) error {
 }
 
 func versionedDBUpgrade(dbtx *bbolt.Tx) error {
-	const oldVersion = 0
 	const newVersion = 1
 
-	dbVersion, err := fetchDBVersion(dbtx)
-	if err == nil {
-		return fmt.Errorf("expected database version not found error")
-	}
-
-	if dbVersion != oldVersion {
-		return fmt.Errorf("versionedDBUpgrade inappropriately called")
+	if _, err := fetchDBVersion(dbtx); err == nil {
+		return fmt.Errorf("unexpected database version found")
 	}
 
 	bkt := dbtx.Bucket(appBucket)
