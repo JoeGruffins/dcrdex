@@ -200,6 +200,11 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+// Error satisfies the error interface.
+func (e Error) Error() string {
+	return e.String()
+}
+
 // String satisfies the Stringer interface for pretty printing.
 func (e Error) String() string {
 	return fmt.Sprintf("error code %d: %s", e.Code, e.Message)
@@ -359,7 +364,7 @@ func (msg *Message) UnmarshalResult(result interface{}) error {
 		return err
 	}
 	if resp.Error != nil {
-		return fmt.Errorf("rpc error: %d: %s", resp.Error.Code, resp.Error.Message)
+		return fmt.Errorf("rpc error: %w", resp.Error)
 	}
 	return json.Unmarshal(resp.Result, result)
 }
