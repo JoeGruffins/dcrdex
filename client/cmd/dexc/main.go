@@ -30,10 +30,21 @@ func main() {
 	// swaps are in negotiation.
 	killChan := make(chan os.Signal, 1)
 	signal.Notify(killChan, os.Interrupt)
-	go func() {
+	var clientCore *core.Core
+	var shutdown func()
+	shutdown = func() {
 		<-killChan
-		cancel()
-	}()
+		if clientCore == nil {
+			cancel()
+			return
+		}
+		if clientCore.PromptShutdown() {
+			cancel()
+			return
+		}
+		go shutdown()
+	}
+	go shutdown()
 
 	// Parse configuration and set up initial logging.
 	//
@@ -68,7 +79,7 @@ func main() {
 	core.UseLoggerMaker(logMaker)
 	log = logMaker.Logger("DEXC")
 
-	clientCore, err := core.New(&core.Config{
+	clientCore, err = core.New(&core.Config{
 		DBPath: cfg.DBPath, // global set in config.go
 		Net:    cfg.Net,
 	})

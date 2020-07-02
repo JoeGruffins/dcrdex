@@ -4,6 +4,7 @@
 package core
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"math"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -2930,6 +2932,61 @@ func (c *Core) tipChange(assetID uint32, nodeErr error) {
 	}
 	c.connMtx.RUnlock()
 	c.updateBalances(counts)
+}
+
+func (c *Core) PromptShutdown() bool {
+	c.connMtx.Lock()
+	defer c.connMtx.Unlock()
+	ok := true
+	for _, dc := range c.conns {
+		if dc.hasActiveOrders() {
+			ok = false
+			break
+		}
+	}
+	if !ok {
+		fmt.Print("You have active orders. Shutting down now may result in failed swaps and account penalization. " +
+			"Do you want to quit anyway? ('y' to quit, enter to abort):")
+		scanner := bufio.NewScanner(os.Stdin)
+		scan := make(chan bool)
+		go func() {
+			scan <- scanner.Scan()
+		}()
+		select {
+		case <-c.ctx.Done():
+			return ok
+		case <-scan:
+		}
+
+		promptResp := scanner.Text()
+		err := scanner.Err()
+		if err != nil {
+			fmt.Printf("input failed: %v", err)
+			return ok
+		}
+
+		switch promptResp {
+		case "y", "yes":
+			for assetID := range c.User().Assets {
+				wallet, found := c.wallet(assetID)
+				if found && wallet.connected() {
+					if err := wallet.Lock(); err != nil {
+						fmt.Println(err)
+						return ok
+					}
+				}
+			}
+			for _, dc := range c.conns {
+				dc.acct.lock()
+			}
+			ok = true
+		case "":
+			fmt.Println("input aborted")
+		default:
+			fmt.Println("invalid input")
+		}
+	}
+	return ok
 }
 
 // convertAssetInfo converts from a *msgjson.Asset to the nearly identical
