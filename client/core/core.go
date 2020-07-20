@@ -2305,98 +2305,105 @@ func (c *Core) connectDEX(acctInfo *db.AccountInfo) (*dexConnection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error parsing ws address %s: %v", wsAddr, err)
 	}
-
-	// Create a websocket connection to the server.
-	conn, err := c.wsConstructor(&comms.WsCfg{
-		URL:      wsURL.String(),
-		PingWait: 60 * time.Second,
-		Cert:     acctInfo.Cert,
-		ReconnectSync: func() {
-			go c.handleReconnect(host)
-		},
-		ConnectEventFunc: func(connected bool) {
-			go c.handleConnectEvent(host, connected)
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	connMaster := dex.NewConnectionMaster(conn)
-	err = connMaster.Connect(c.ctx)
-	// If the initial connection returned an error, shut it down to kill the
-	// auto-reconnect cycle.
-	if err != nil {
-		connMaster.Disconnect()
-		return nil, err
-	}
-
-	// Request the market configuration. Disconnect from the DEX server if the
-	// configuration cannot be retrieved.
-	dexCfg := new(msgjson.ConfigResult)
-	err = sendRequest(conn, msgjson.ConfigRoute, nil, dexCfg)
-	if err != nil {
-		connMaster.Disconnect()
-		return nil, fmt.Errorf("Error fetching DEX server config: %v", err)
-	}
-
-	assets := make(map[uint32]*dex.Asset, len(dexCfg.Assets))
-	for _, asset := range dexCfg.Assets {
-		assets[asset.ID] = convertAssetInfo(asset)
-	}
-	// Validate the markets so we don't have to check every time later.
-	for _, mkt := range dexCfg.Markets {
-		_, ok := assets[mkt.Base]
-		if !ok {
-			log.Errorf("%s reported a market with base asset %d, "+
-				"but did not provide the asset info.", host, mkt.Base)
+	for i := 0; i < 20; i++ {
+		// Create a websocket connection to the server.
+		conn, err := c.wsConstructor(&comms.WsCfg{
+			URL:      wsURL.String(),
+			PingWait: 60 * time.Second,
+			Cert:     acctInfo.Cert,
+			ReconnectSync: func() {
+				go c.handleReconnect(host)
+			},
+			ConnectEventFunc: func(connected bool) {
+				go c.handleConnectEvent(host, connected)
+			},
+		})
+		if err != nil {
+			return nil, err
 		}
-		_, ok = assets[mkt.Quote]
-		if !ok {
-			log.Errorf("%s reported a market with quote asset %d, "+
-				"but did not provide the asset info.", host, mkt.Quote)
+
+		connMaster := dex.NewConnectionMaster(conn)
+		err = connMaster.Connect(c.ctx)
+		// If the initial connection returned an error, shut it down to kill the
+		// auto-reconnect cycle.
+		if err != nil {
+			log.Errorf("unable to connect: %d", i)
+			connMaster.Disconnect()
+			time.Sleep(time.Second)
+			continue
 		}
+		log.Infof("connected: %d", i)
 	}
+	return nil, nil
 
-	marketMap := make(map[string]*Market)
-	epochMap := make(map[string]uint64)
-	for _, mkt := range dexCfg.Markets {
-		base, quote := assets[mkt.Base], assets[mkt.Quote]
-		market := &Market{
-			Name:            mkt.Name,
-			BaseID:          base.ID,
-			BaseSymbol:      base.Symbol,
-			QuoteID:         quote.ID,
-			QuoteSymbol:     quote.Symbol,
-			EpochLen:        mkt.EpochLen,
-			StartEpoch:      mkt.StartEpoch,
-			MarketBuyBuffer: mkt.MarketBuyBuffer,
+	/*
+		// Request the market configuration. Disconnect from the DEX server if the
+		// configuration cannot be retrieved.
+		dexCfg := new(msgjson.ConfigResult)
+		err = sendRequest(conn, msgjson.ConfigRoute, nil, dexCfg)
+		if err != nil {
+			connMaster.Disconnect()
+			return nil, fmt.Errorf("Error fetching DEX server config: %v", err)
 		}
-		marketMap[mkt.Name] = market
-		epochMap[mkt.Name] = 0
-	}
 
-	// Create the dexConnection and listen for incoming messages.
-	dc := &dexConnection{
-		WsConn:     conn,
-		connMaster: connMaster,
-		assets:     assets,
-		cfg:        dexCfg,
-		books:      make(map[string]*bookie),
-		acct:       newDEXAccount(acctInfo),
-		marketMap:  marketMap,
-		trades:     make(map[order.OrderID]*trackedTrade),
-		notify:     c.notify,
-		epoch:      epochMap,
-		connected:  true,
-	}
+		assets := make(map[uint32]*dex.Asset, len(dexCfg.Assets))
+		for _, asset := range dexCfg.Assets {
+			assets[asset.ID] = convertAssetInfo(asset)
+		}
+		// Validate the markets so we don't have to check every time later.
+		for _, mkt := range dexCfg.Markets {
+			_, ok := assets[mkt.Base]
+			if !ok {
+				log.Errorf("%s reported a market with base asset %d, "+
+					"but did not provide the asset info.", host, mkt.Base)
+			}
+			_, ok = assets[mkt.Quote]
+			if !ok {
+				log.Errorf("%s reported a market with quote asset %d, "+
+					"but did not provide the asset info.", host, mkt.Quote)
+			}
+		}
 
-	dc.refreshMarkets()
-	c.wg.Add(1)
-	go c.listen(dc)
-	log.Infof("Connected to DEX server at %s and listening for messages.", host)
+		marketMap := make(map[string]*Market)
+		epochMap := make(map[string]uint64)
+		for _, mkt := range dexCfg.Markets {
+			base, quote := assets[mkt.Base], assets[mkt.Quote]
+			market := &Market{
+				Name:            mkt.Name,
+				BaseID:          base.ID,
+				BaseSymbol:      base.Symbol,
+				QuoteID:         quote.ID,
+				QuoteSymbol:     quote.Symbol,
+				EpochLen:        mkt.EpochLen,
+				StartEpoch:      mkt.StartEpoch,
+				MarketBuyBuffer: mkt.MarketBuyBuffer,
+			}
+			marketMap[mkt.Name] = market
+			epochMap[mkt.Name] = 0
+		}
 
-	return dc, nil
+		// Create the dexConnection and listen for incoming messages.
+		dc := &dexConnection{
+			WsConn:     conn,
+			connMaster: connMaster,
+			assets:     assets,
+			cfg:        dexCfg,
+			books:      make(map[string]*bookie),
+			acct:       newDEXAccount(acctInfo),
+			marketMap:  marketMap,
+			trades:     make(map[order.OrderID]*trackedTrade),
+			notify:     c.notify,
+			epoch:      epochMap,
+			connected:  true,
+		}
+
+		dc.refreshMarkets()
+		c.wg.Add(1)
+		go c.listen(dc)
+		log.Infof("Connected to DEX server at %s and listening for messages.", host)
+
+		return dc, nil
+	*/
 }
 
 // handleReconnect is called when a WsConn indicates that a lost connection has

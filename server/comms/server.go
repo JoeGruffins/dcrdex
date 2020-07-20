@@ -35,7 +35,7 @@ const (
 
 	// rpcMaxClients is the maximum number of active websocket connections
 	// allowed.
-	rpcMaxClients = 10000
+	rpcMaxClients = 10
 
 	// banishTime is the default duration of a client quarantine.
 	banishTime = time.Hour
