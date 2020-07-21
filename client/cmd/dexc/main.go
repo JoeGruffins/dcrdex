@@ -38,7 +38,7 @@ func main() {
 			cancel()
 			return
 		}
-		if clientCore.PromptShutdown() {
+		if clientCore.PromptShutdown(killChan) {
 			cancel()
 			return
 		}

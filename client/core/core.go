@@ -2934,7 +2934,7 @@ func (c *Core) tipChange(assetID uint32, nodeErr error) {
 	c.updateBalances(counts)
 }
 
-func (c *Core) PromptShutdown() bool {
+func (c *Core) PromptShutdown(killChan <-chan os.Signal) bool {
 	c.connMtx.Lock()
 	defer c.connMtx.Unlock()
 	ok := true
@@ -2953,8 +2953,8 @@ func (c *Core) PromptShutdown() bool {
 			scan <- scanner.Scan()
 		}()
 		select {
-		case <-c.ctx.Done():
-			return ok
+		case <-killChan:
+			return true
 		case <-scan:
 		}
 
