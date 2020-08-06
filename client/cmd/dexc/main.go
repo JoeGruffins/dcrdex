@@ -89,7 +89,7 @@ func main() {
 		wg.Done()
 	}()
 
-	wsServer := websocket.New(clientCore, appCtx)
+	wsServer := websocket.New(appCtx, clientCore)
 	wsServer.SetLogger(logMaker.Logger("WS"))
 	wg.Add(1)
 	go func() {

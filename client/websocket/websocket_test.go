@@ -360,7 +360,7 @@ func TestClientMap(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		s.Handle(conn, "someip")
+		s.connect(conn, "someip")
 		wg.Done()
 	}()
 

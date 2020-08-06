@@ -122,7 +122,7 @@ func createApp() {
 		log.Errorf("error creating client core: %v", err)
 		return
 	}
-	wsServer = websocket.New(clientCore, appCtx)
+	wsServer = websocket.New(appCtx, clientCore)
 	wsServer.SetLogger(lm.Logger("WS"))
 	go clientCore.Run(appCtx)
 	createWidgets()

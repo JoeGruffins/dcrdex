@@ -168,11 +168,10 @@ func (r *TReader) Read(p []byte) (n int, err error) {
 	if len(p) < len(r.msg) {
 		r.msg = r.msg[:len(p)]
 		return len(p), nil
-	} else {
-		l := len(r.msg)
-		r.msg = nil
-		return l, io.EOF
 	}
+	l := len(r.msg)
+	r.msg = nil
+	return l, io.EOF
 }
 
 func (r *TReader) Close() error { return nil }

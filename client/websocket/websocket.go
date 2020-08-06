@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,11 +52,10 @@ type Server struct {
 	ctx     context.Context
 	mtx     sync.RWMutex
 	clients map[int32]*wsClient
-	syncers map[string]*marketSyncer
 }
 
 // New returns a new websocket Server.
-func New(core Core, ctx context.Context) *Server {
+func New(ctx context.Context, core Core) *Server {
 	return &Server{
 		core:    core,
 		ctx:     ctx,
@@ -90,10 +91,28 @@ func (s *Server) Shutdown() {
 	s.mtx.Unlock()
 }
 
-// Handle handles a new websocket client by creating a new wsClient, starting
+// HandleConnect handles the websocket connection request, creating a ws.Connection
+// and a connect thread.
+func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
+	// If the IP address includes a port, remove it.
+	ip := r.RemoteAddr
+	// If a host:port can be parsed, the IP is only the host portion.
+	host, _, err := net.SplitHostPort(ip)
+	if err == nil && host != "" {
+		ip = host
+	}
+	wsConn, err := ws.NewConnection(w, r, pongWait)
+	if err != nil {
+		log.Errorf("ws connection error: %v", err)
+		return
+	}
+	go s.connect(wsConn, ip)
+}
+
+// connect handles a new websocket client by creating a new wsClient, starting
 // it, and blocking until the connection closes. This method should be
 // run as a goroutine.
-func (s *Server) Handle(conn ws.Connection, ip string) {
+func (s *Server) connect(conn ws.Connection, ip string) {
 	log.Debugf("New websocket client %s", ip)
 	// Create a new websocket client to handle the new websocket connection
 	// and wait for it to shutdown.  Once it has shutdown (and hence

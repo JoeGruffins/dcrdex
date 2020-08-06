@@ -25,7 +25,6 @@ import (
 	"decred.org/dcrdex/client/db"
 	"decred.org/dcrdex/client/websocket"
 	"decred.org/dcrdex/dex"
-	"decred.org/dcrdex/dex/ws"
 	"github.com/decred/slog"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -160,7 +159,7 @@ func New(core clientCore, addr string, wsServer *websocket.Server, logger slog.L
 	mux.Use(s.authMiddleware)
 
 	// Websocket endpoint
-	mux.Get("/ws", s.handleWS)
+	mux.Get("/ws", s.wsServer.HandleConnect)
 
 	// Webpages
 	mux.Group(func(web chi.Router) {
@@ -267,24 +266,6 @@ func (s *WebServer) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 
 	log.Infof("Web server listening on http://%s", s.addr)
 	return &wg, nil
-}
-
-// handleWS handles the websocket connection request, creating a ws.Connection
-// and a wsServer.Handle thread.
-func (s *WebServer) handleWS(w http.ResponseWriter, r *http.Request) {
-	// If the IP address includes a port, remove it.
-	ip := r.RemoteAddr
-	// If a host:port can be parsed, the IP is only the host portion.
-	host, _, err := net.SplitHostPort(ip)
-	if err == nil && host != "" {
-		ip = host
-	}
-	wsConn, err := ws.NewConnection(w, r, pongWait)
-	if err != nil {
-		log.Errorf("ws connection error: %v", err)
-		return
-	}
-	go s.wsServer.Handle(wsConn, ip)
 }
 
 // authorize creates, stores, and returns a new auth token to identify the
