@@ -41,8 +41,6 @@ type TCore struct {
 	regFee              uint64
 	getFeeErr           error
 	balanceErr          error
-	syncBook            *core.OrderBook
-	syncFeed            *core.BookFeed
 	syncErr             error
 	createWalletErr     error
 	newWalletForm       *core.WalletForm
@@ -159,13 +157,6 @@ func (r *TReader) Read(p []byte) (n int, err error) {
 }
 
 func (r *TReader) Close() error { return nil }
-
-type TConn struct {
-	msg       []byte
-	reads     [][]byte      // data for ReadMessage
-	respReady chan []byte   // signal from WriteMessage
-	close     chan struct{} // Close tells ReadMessage to return with error
-}
 
 var tPort = 5555
 

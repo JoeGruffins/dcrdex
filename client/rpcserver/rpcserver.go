@@ -85,7 +85,6 @@ type RPCServer struct {
 	tlsConfig *tls.Config
 	srv       *http.Server
 	authsha   [32]byte
-	mtx       sync.RWMutex
 	wg        sync.WaitGroup
 }
 
