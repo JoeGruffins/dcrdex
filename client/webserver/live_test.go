@@ -770,7 +770,7 @@ func TestServer(t *testing.T) {
 		}
 		tCore.Register(new(core.RegisterForm))
 	}
-	wsServer := websocket.New(tCore, tCtx)
+	wsServer := websocket.New(tCtx, tCore)
 
 	s, err := New(tCore, ":54321", wsServer, logger, true)
 	if err != nil {
