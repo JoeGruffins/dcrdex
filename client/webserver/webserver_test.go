@@ -72,7 +72,6 @@ type TCore struct {
 	notHas          bool
 	notRunning      bool
 	notOpen         bool
-	conn            *TConn
 }
 
 func (c *TCore) Exchanges() map[string]*core.Exchange                        { return nil }
@@ -240,7 +239,7 @@ func newTServer(t *testing.T, start bool) (*WebServer, *TCore, func(), error) {
 	c := &TCore{}
 	var shutdown func()
 	ctx, killCtx := context.WithCancel(tCtx)
-	s, err := New(c, "127.0.0.1:0", websocket.New(c, ctx), tLogger, false)
+	s, err := New(c, "127.0.0.1:0", websocket.New(ctx, c), tLogger, false)
 	if err != nil {
 		t.Errorf("error creating server: %v", err)
 	}
@@ -311,7 +310,7 @@ func TestConnectBindError(t *testing.T) {
 	defer shutdown()
 
 	tAddr := s0.addr
-	s, err := New(&TCore{}, tAddr, websocket.New(&TCore{}, nil), tLogger, false)
+	s, err := New(&TCore{}, tAddr, websocket.New(nil, &TCore{}), tLogger, false)
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
