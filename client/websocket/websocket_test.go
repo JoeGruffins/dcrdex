@@ -201,7 +201,7 @@ func newLink() *tLink {
 func newTServer(t *testing.T) (*Server, *TCore, func()) {
 	c := &TCore{}
 	ctx, killCtx := context.WithCancel(tCtx)
-	s := New(c, ctx)
+	s := New(ctx, c)
 	return s, c, killCtx
 }
 
