@@ -121,6 +121,12 @@ book and place orders.
 '''&#91;6&#93; [[api.mediawiki| Data API]]''' defines http and WebSocket APIs to browse
 trade history.
 
+'''&#91;6&#93; [[client.mediawiki| Client]]''' defines client functionality
+* [[client.mediawiki/#RPC_Server|RPC Server]]
+** [[client.mediawiki/#HTTP|HTTP]]
+** [[client.mediawiki/#Websocket|Websocket]]
+** [[client.mediawiki/#Examples|Examples]]
+
 '''&#91;7&#93; [[atomic.mediawiki|Atomic Settlement]]''' walks through the settlement
 process with a couple of examples to provide a high-level overview.
 
