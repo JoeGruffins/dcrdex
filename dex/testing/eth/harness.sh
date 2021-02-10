@@ -22,15 +22,22 @@ BETA_NODE_KEY="0f3f23a0f14202da009bd59a96457098acea901986629e54d5be1eea32fc404a"
 BETA_ENODE="b1d3e358ee5c9b268e911f2cab47bc12d0e65c80a6d2b453fece34facc9ac3caed14aa3bc7578166bb08c5bc9719e5a2267ae14e0b42da393f4d86f6d5829061"
 BETA_NODE_PORT="30303"
 
-# PASSWORD is the password used to unlock all accounts/wallets/addresses.
+GAMMA_NODE_KEY="ce86f685ec1db6cfd8881383f7beb0933144a6a22d826110d1d1a1eff6d13cec"
+GAMMA_ENODE="4167c6a237f9667ae83498faf71dde5ebc8ee606b06872b93e09ceee19a02e355e191447a1bac2fe41509a7e7a15d3b5137e4834c847dd2e0fa16fa3a816b491"
+GAMMA_NODE_PORT="30304"
+
+DELTA_NODE_KEY="4f3f9cb68b64dc12d315562b3122c7acb3e1fb87e97b6df927fdbc6b069a7027"
+DELTA_ENODE="3a0809eec665daf8f7ef9e24d4d833d034e5532a7ea003a6afb4aa01236fbed517a95e7b199682c42851d734118c6a4c89e551b83c8ab10935c02a0a2e10fe5d"
+DELTA_NODE_PORT="30305"
+
+# PASSWORD is the password used to unlock all accounts/signers/addresses.
 PASSWORD="abc"
 
 export NODES_ROOT=~/dextest/eth
 export GENESIS_JSON_FILE_LOCATION="${NODES_ROOT}/genesis.json"
-export MINE_JS="${NODES_ROOT}/mine.js"
 
 if [ -d "${NODES_ROOT}" ]; then
-  rm -R "${NODES_ROOT}"
+  rm -fR "${NODES_ROOT}"
 fi
 
 mkdir -p "${NODES_ROOT}/alpha"
@@ -76,23 +83,11 @@ cat > "${NODES_ROOT}/genesis.json" <<EOF
 }
 EOF
 
-# Write mining javascript.
-# NOTE: This sometimes mines more than one block. It is a race. This returns
-# the number of blocks mined within the lifespan of the function, but one more
-# MAY be mined after returning.
-cat > "${MINE_JS}" <<EOF
-function mine() {
-  blkN = eth.blockNumber;
-  miner.start();
-  miner.stop();
-  admin.sleep(1.1);
-  return eth.blockNumber - blkN;
-}
-EOF
-
-# Add wallet script.
+# Add node and signer script.
 HARNESS_DIR=$(dirname "$0")
+export HARNESS_DIR
 cp "${HARNESS_DIR}/create-node.sh" "${NODES_ROOT}/harness-ctl/create-node"
+cp "${HARNESS_DIR}/create-signer.sh" "${NODES_ROOT}/harness-ctl/create-signer"
 
 # Reorg script
 # TODO: Make this.
@@ -102,6 +97,8 @@ cat > "${NODES_ROOT}/harness-ctl/quit" <<EOF
 #!/bin/sh
 tmux send-keys -t $SESSION:1 C-c
 tmux send-keys -t $SESSION:2 C-c
+tmux send-keys -t $SESSION:3 C-c
+tmux send-keys -t $SESSION:4 C-c
 tmux kill-session
 EOF
 chmod +x "${NODES_ROOT}/harness-ctl/quit"
@@ -120,21 +117,34 @@ tmux send-keys -t $SESSION:0 "cd ${NODES_ROOT}/harness-ctl" C-m
 # Eth nodes
 ################################################################################
 
-echo "Starting simnet alpha node"
-"${HARNESS_DIR}/create-node.sh" "$SESSION:1" "alpha" "$ALPHA_NODE_PORT " \
-	"$CHAIN_ADDRESS" "$PASSWORD" "$CHAIN_ADDRESS_JSON " \
+# Create and start alpha node and signer.
+"${HARNESS_DIR}/create-node.sh" "$SESSION:1" "_" "_" "alpha" "$ALPHA_NODE_PORT " \
+	"$ALPHA_NODE_KEY" 1 "$CHAIN_ADDRESS" "$PASSWORD" "$CHAIN_ADDRESS_JSON " \
 	"$CHAIN_ADDRESS_JSON_FILE_NAME" "$ALPHA_ADDRESS" "$PASSWORD" \
-	"$ALPHA_ADDRESS_JSON " "$ALPHA_ADDRESS_JSON_FILE_NAME" "$ALPHA_NODE_KEY"
+	"$ALPHA_ADDRESS_JSON " "$ALPHA_ADDRESS_JSON_FILE_NAME"
 
-echo "Starting simnet beta node"
-"${HARNESS_DIR}/create-node.sh" "$SESSION:2" "beta" "$BETA_NODE_PORT " \
-	"$CHAIN_ADDRESS" "$PASSWORD" "$CHAIN_ADDRESS_JSON " \
+# Create and start beta node and signer.
+"${HARNESS_DIR}/create-node.sh" "$SESSION:2" "_" "_" "beta" "$BETA_NODE_PORT " \
+	"$BETA_NODE_KEY" 1 "$CHAIN_ADDRESS" "$PASSWORD" "$CHAIN_ADDRESS_JSON " \
 	"$CHAIN_ADDRESS_JSON_FILE_NAME" "$BETA_ADDRESS" "$PASSWORD" \
-	"$BETA_ADDRESS_JSON " "$BETA_ADDRESS_JSON_FILE_NAME" "$BETA_NODE_KEY"
+	"$BETA_ADDRESS_JSON " "$BETA_ADDRESS_JSON_FILE_NAME"
 
-# NOTE: This will cause beta to connect automatically to alpha.
+# Create and start gamma node and signer.
+"${HARNESS_DIR}/create-node.sh" "$SESSION:3" "$SESSION:4" "$PASSWORD" "gamma" \
+	"$GAMMA_NODE_PORT" "$GAMMA_NODE_KEY" 0
+
+# Create and start delta node and signer.
+"${HARNESS_DIR}/create-node.sh" "$SESSION:5" "$SESSION:6" "$PASSWORD" "delta" \
+       	"$DELTA_NODE_PORT" "$DELTA_NODE_KEY" 0
+
+# NOTE: Connecting a node will add for both.
 echo "Connecting nodes"
 "${NODES_ROOT}/harness-ctl/alpha" "attach --exec admin.addPeer('enode://${BETA_ENODE}@127.0.0.1:$BETA_NODE_PORT')"
+"${NODES_ROOT}/harness-ctl/alpha" "attach --exec admin.addPeer('enode://${GAMMA_ENODE}@127.0.0.1:$GAMMA_NODE_PORT')"
+"${NODES_ROOT}/harness-ctl/alpha" "attach --exec admin.addPeer('enode://${DELTA_ENODE}@127.0.0.1:$DELTA_NODE_PORT')"
+"${NODES_ROOT}/harness-ctl/beta" "attach --exec admin.addPeer('enode://${GAMMA_ENODE}@127.0.0.1:$GAMMA_NODE_PORT')"
+"${NODES_ROOT}/harness-ctl/beta" "attach --exec admin.addPeer('enode://${DELTA_ENODE}@127.0.0.1:$DELTA_NODE_PORT')"
+"${NODES_ROOT}/harness-ctl/gamma" "attach --exec admin.addPeer('enode://${DELTA_ENODE}@127.0.0.1:$DELTA_NODE_PORT')"
 
 # Reenable history and attach to the control session.
 tmux select-window -t $SESSION:0
