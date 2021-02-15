@@ -121,6 +121,11 @@ echo "Starting simnet beta node"
 echo "Connecting nodes"
 "${NODES_ROOT}/harness-ctl/alpha" "attach --exec admin.addPeer('enode://${BETA_ENODE}@127.0.0.1:$BETA_NODE_PORT')"
 
+sleep 1
+
+echo "Mining a block"
+"${NODES_ROOT}/harness-ctl/mine-alpha" "1"
+
 # Reenable history and attach to the control session.
 tmux select-window -t $SESSION:0
 tmux send-keys -t $SESSION:0 "set -o history" C-m

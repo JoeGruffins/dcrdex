@@ -37,7 +37,7 @@ cat > "${NODES_ROOT}/harness-ctl/mine-${NAME}" <<EOF
       *) NUM=\$1 ;;
   esac
   for i in \$(seq \$NUM) ; do
-    ./${NAME} attach --preload "${MINE_JS}" --exec 'mine()'
+    "${NODES_ROOT}/harness-ctl/${NAME}" attach --preload "${MINE_JS}" --exec 'mine()'
   done
 EOF
 chmod +x "${NODES_ROOT}/harness-ctl/mine-${NAME}"
