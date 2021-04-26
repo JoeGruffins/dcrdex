@@ -848,7 +848,7 @@ func (db *BoltDB) DEXOrdersWithActiveMatches(dex string) ([]order.OrderID, error
 			}
 
 			// Inactive if refunded.
-			proofB := getCopy(mBkt, proofKey)
+			proofB := mBkt.Get(proofKey)
 			if len(proofB) == 0 {
 				db.log.Errorf("empty match proof")
 				return nil

@@ -197,7 +197,7 @@ func reloadMatchProofs(tx *bbolt.Tx) error {
 		if mBkt == nil {
 			return fmt.Errorf("match %x bucket is not a bucket", k)
 		}
-		proofB := getCopy(mBkt, proofKey)
+		proofB := mBkt.Get(proofKey)
 		if len(proofB) == 0 {
 			return fmt.Errorf("empty match proof")
 		}
