@@ -84,16 +84,28 @@ func (db *BoltDB) upgradeDB() error {
 		return fmt.Errorf("failed to backup DB prior to upgrade: %w", err)
 	}
 
-	return db.Update(func(tx *bbolt.Tx) error {
-		// Execute all necessary upgrades in order.
-		for i, upgrade := range upgrades[version:] {
-			err := doUpgrade(tx, upgrade, version+uint32(i)+1)
-			if err != nil {
-				return err
-			}
+	// Each upgrade its own tx.
+	for i, upgrade := range upgrades[version:] {
+		err = db.Update(func(tx *bbolt.Tx) error {
+			return doUpgrade(tx, upgrade, version+uint32(i)+1)
+		})
+		if err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
+
+	// All upgrades in a single tx.
+	// return db.Update(func(tx *bbolt.Tx) error {
+	// 	// Execute all necessary upgrades in order.
+	// 	for i, upgrade := range upgrades[version:] {
+	// 		err := doUpgrade(tx, upgrade, version+uint32(i)+1)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	// 	return nil
+	// })
 }
 
 // Get the currently stored DB version.
