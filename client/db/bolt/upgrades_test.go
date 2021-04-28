@@ -25,10 +25,10 @@ var dbUpgradeTests = [...]struct {
 	filename   string // in testdata directory
 	newVersion uint32
 }{
-	// {"testnetbot", v1Upgrade, verifyV1Upgrade, "dexbot-testnet.db.gz", 3}, // only for TestUpgradeDB
-	{"upgradeFromV0", v1Upgrade, verifyV1Upgrade, "v0.db.gz", 1},
-	{"upgradeFromV1", v2Upgrade, verifyV2Upgrade, "v1.db.gz", 2},
-	{"upgradeFromV2", v3Upgrade, verifyV3Upgrade, "v2.db.gz", 3},
+	{"testnetbot", v1Upgrade, verifyV1Upgrade, "dexbot-testnet.db.gz", 3}, // only for TestUpgradeDB
+	//{"upgradeFromV0", v1Upgrade, verifyV1Upgrade, "v0.db.gz", 1},
+	//{"upgradeFromV1", v2Upgrade, verifyV2Upgrade, "v1.db.gz", 2},
+	//{"upgradeFromV2", v3Upgrade, verifyV3Upgrade, "v2.db.gz", 3},
 }
 
 func TestUpgrades(t *testing.T) {
@@ -67,9 +67,7 @@ func TestUpgrades(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer db.Close()
-				err = db.Update(func(dbtx *bbolt.Tx) error {
-					return doUpgrade(dbtx, tc.upgrade, tc.newVersion)
-				})
+				err = doUpgrade(db, tc.upgrade, tc.newVersion)
 				if err != nil {
 					t.Fatalf("Upgrade failed: %v", err)
 				}
