@@ -67,7 +67,7 @@ var (
 	participantAcct  = &accounts.Account{Address: participantAddr}
 	contractAddr     common.Address
 	simnetID         = int64(42)
-	newTXOpts        = func(ctx context.Context, from common.Address, value *big.Int) *bind.TransactOpts {
+	newTxOpts        = func(ctx context.Context, from common.Address, value *big.Int) *bind.TransactOpts {
 		return &bind.TransactOpts{
 			GasPrice: gasPrice,
 			GasLimit: 1e6,
@@ -135,9 +135,9 @@ func TestMain(m *testing.M) {
 		fmt.Printf("no contract address found at %v\n", contractAddrFile)
 		os.Exit(1)
 	}
-	addrBytes = addrBytes[:addrLen-1]
-	copy(contractAddr[:], addrBytes)
-	fmt.Printf("Contract address is %v\n", string(addrBytes))
+	addrStr := string(addrBytes[:addrLen-1])
+	contractAddr = common.HexToAddress(addrStr)
+	fmt.Printf("Contract address is %v\n", addrStr)
 	settings := map[string]string{
 		"appdir":         testDir,
 		"nodelistenaddr": "localhost:30355",
@@ -152,7 +152,7 @@ func TestMain(m *testing.M) {
 		wallet.internalNode.Close()
 		wallet.internalNode.Wait()
 	}()
-	if err := ethClient.connect(ctx, wallet.internalNode, common.HexToAddress(string(addrBytes))); err != nil {
+	if err := ethClient.connect(ctx, wallet.internalNode, common.HexToAddress(addrStr)); err != nil {
 		fmt.Printf("connect error: %v\n", err)
 		os.Exit(1)
 	}
@@ -376,7 +376,7 @@ func TestInitiate(t *testing.T) {
 		t.Fatal(err)
 	}
 	amt := big.NewInt(1e18)
-	txOpts := newTXOpts(ctx, simnetAddr, amt)
+	txOpts := newTxOpts(ctx, simnetAddr, amt)
 	swap, err := ethClient.swap(ctx, simnetAcct, secretHash)
 	if err != nil {
 		t.Fatal("unable to get swap state")
@@ -496,7 +496,7 @@ func TestRedeem(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		txOpts := newTXOpts(ctx, simnetAddr, amt)
+		txOpts := newTxOpts(ctx, simnetAddr, amt)
 		var secret [32]byte
 		copy(secret[:], encode.RandomBytes(32))
 		secretHash := sha256.Sum256(secret[:])
@@ -529,7 +529,7 @@ func TestRedeem(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error for test %v: %v", test.name, err)
 		}
-		txOpts = newTXOpts(ctx, test.redeemer.Address, nil)
+		txOpts = newTxOpts(ctx, test.redeemer.Address, nil)
 		tx, err := ethClient.redeem(txOpts, simnetID, secret, secretHash)
 		if err != nil {
 			t.Fatalf("unexpected error for test %v: %v", test.name, err)
@@ -617,7 +617,7 @@ func TestRefund(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		txOpts := newTXOpts(ctx, simnetAddr, amt)
+		txOpts := newTxOpts(ctx, simnetAddr, amt)
 		var secret [32]byte
 		copy(secret[:], encode.RandomBytes(32))
 		secretHash := sha256.Sum256(secret[:])
@@ -641,7 +641,7 @@ func TestRefund(t *testing.T) {
 			if err := waitForMined(t, time.Second*8, false); err != nil {
 				t.Fatalf("unexpected error for test %v: %v", test.name, err)
 			}
-			txOpts = newTXOpts(ctx, participantAddr, nil)
+			txOpts = newTxOpts(ctx, participantAddr, nil)
 			_, err := ethClient.redeem(txOpts, simnetID, secret, secretHash)
 			if err != nil {
 				t.Fatalf("unexpected error for test %v: %v", test.name, err)
@@ -658,7 +658,7 @@ func TestRefund(t *testing.T) {
 			t.Fatalf("unexpected error for test %v: %v", test.name, err)
 		}
 
-		txOpts = newTXOpts(ctx, test.refunder.Address, nil)
+		txOpts = newTxOpts(ctx, test.refunder.Address, nil)
 		tx, err := ethClient.refund(txOpts, simnetID, secretHash)
 		if err != nil {
 			t.Fatalf("unexpected error for test %v: %v", test.name, err)
@@ -712,35 +712,7 @@ func TestReplayAttack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var secretHash [32]byte
-	// Make four swaps that should be locked and refundable and one that is soon refundable.
-	for i := 0; i < 5; i++ {
-		var secret [32]byte
-		copy(secret[:], encode.RandomBytes(32))
-		secretHash = sha256.Sum256(secret[:])
-
-		_, err := ethClient.swap(ctx, simnetAcct, secretHash)
-		if err != nil {
-			t.Fatal("unable to get swap state")
-		}
-
-		inLocktime := time.Now().Add(time.Hour).Unix()
-		if i == 4 {
-			inLocktime = time.Now().Unix()
-		}
-		txOpts := newTXOpts(ctx, simnetAddr, amt)
-
-		_, err = ethClient.initiate(txOpts, simnetID, inLocktime, secretHash, participantAddr)
-		if err != nil {
-			t.Fatalf("unable to initiate swap: %v ", err)
-		}
-
-		if err := waitForMined(t, time.Second*10, false); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	txOpts := newTXOpts(ctx, simnetAddr, nil)
+	txOpts := newTxOpts(ctx, simnetAddr, nil)
 	err = ethClient.addSignerToOpts(txOpts, simnetID)
 	if err != nil {
 		t.Fatal(err)
@@ -755,45 +727,68 @@ func TestReplayAttack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	originalBal, err := ethClient.balance(ctx, simnetAcct)
-	if err != nil {
-		t.Fatal(err)
+	txOpts.Value = amt
+	var secretHash [32]byte
+	// Make four swaps that should be locked and refundable and one that is soon refundable.
+	for i := 0; i < 5; i++ {
+		var secret [32]byte
+		copy(secret[:], encode.RandomBytes(32))
+		secretHash = sha256.Sum256(secret[:])
+
+		if i != 4 {
+			inLocktime := time.Now().Add(time.Hour).Unix()
+			_, err = ethClient.initiate(txOpts, simnetID, inLocktime, secretHash, participantAddr)
+			if err != nil {
+				t.Fatalf("unable to initiate swap: %v ", err)
+			}
+
+			if err := waitForMined(t, time.Second*10, false); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+
+		inLocktime := time.Now().Add(-1 * time.Second).Unix()
+		// Set some variables in the contract use for the exploit.
+		_, err := reentryContract.SetUsUpTheBomb(txOpts, contractAddr, secretHash, big.NewInt(inLocktime), participantAddr)
+		if err != nil {
+			t.Fatalf("unable to set up the bomb: %v", err)
+		}
+		if err = waitForMined(t, time.Second*10, false); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	// Set some variables in the contract use for the exploit.
-	tx, err := reentryContract.SetUsUpTheBomb(txOpts, contractAddr, secretHash)
+	txOpts.Value = nil
+	// Siphon funds into the contract.
+	tx, err := reentryContract.AllYourBase(txOpts)
 	if err != nil {
-		t.Fatalf("unable to set up the bomb: %v", err)
+		t.Fatalf("unable to get all your base: %v", err)
 	}
+	fmt.Println("******************************** all yur base")
+	spew.Dump(tx)
 	if err = waitForMined(t, time.Second*10, false); err != nil {
 		t.Fatal(err)
 	}
 	receipt, err := ethClient.transactionReceipt(ctx, tx.Hash())
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("unable to get receipt: %v", err)
 	}
-	txFee := big.NewInt(0).Mul(big.NewInt(int64(receipt.GasUsed)), gasPrice)
-	wantBal := big.NewInt(0).Sub(originalBal, txFee)
+	spew.Dump(receipt)
 
-	// Siphon funds into the contract.
-	tx, err = reentryContract.AllYourBase(txOpts)
-	if err != nil {
-		t.Fatalf("unable to get all your base: %v", err)
-	}
 	if err = waitForMined(t, time.Second*10, false); err != nil {
 		t.Fatal(err)
 	}
-	receipt, err = ethClient.transactionReceipt(ctx, tx.Hash())
+
+	originalBal, err := ethClient.balance(ctx, simnetAcct)
 	if err != nil {
 		t.Fatal(err)
 	}
-	txFee = big.NewInt(0).Mul(big.NewInt(int64(receipt.GasUsed)), gasPrice)
-	wantBal = wantBal.Sub(wantBal, txFee)
 
 	// Send the siphoned funds to us.
 	tx, err = reentryContract.AreBelongToUs(txOpts)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("unable to are belong to us: %v", err)
 	}
 	if err = waitForMined(t, time.Second*10, false); err != nil {
 		t.Fatal(err)
@@ -802,8 +797,8 @@ func TestReplayAttack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	txFee = big.NewInt(0).Mul(big.NewInt(int64(receipt.GasUsed)), gasPrice)
-	wantBal = wantBal.Sub(wantBal, txFee)
+	txFee := big.NewInt(0).Mul(big.NewInt(int64(receipt.GasUsed)), gasPrice)
+	wantBal := big.NewInt(0).Sub(originalBal, txFee)
 
 	bal, err := ethClient.balance(ctx, simnetAcct)
 	if err != nil {
@@ -812,8 +807,8 @@ func TestReplayAttack(t *testing.T) {
 
 	// If the exploit worked, the test should fail here.
 	if bal.Cmp(wantBal) != 0 {
-		diff := big.NewInt(0).Sub(wantBal, bal)
-		t.Fatalf("expected balance is off by %d", diff)
+		diff := big.NewInt(0).Sub(bal, wantBal)
+		t.Fatalf("unexpected balance change: want %v got %v or a difference of %v", wantBal, bal, diff)
 	}
 
 	// The Exploit failed but the refund completed.
@@ -831,7 +826,6 @@ func TestReplayAttack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	spew.Dump(tx)
 
 	if err = waitForMined(t, time.Second*10, false); err != nil {
 		t.Fatal(err)

