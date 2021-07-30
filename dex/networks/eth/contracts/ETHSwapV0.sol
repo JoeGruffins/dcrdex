@@ -76,17 +76,18 @@ contract ETHSwap {
         senderIsOrigin()
         isRedeemable(secretHash, secret, msg.sender)
     {
-        payable(msg.sender).transfer(swaps[secretHash].value);
         swaps[secretHash].state = State.Redeemed;
+        (bool ok, ) = payable(msg.sender).call{value: swaps[secretHash].value}("");
+        require(ok == true);
         swaps[secretHash].secret = secret;
     }
 
     function refund(bytes32 secretHash)
         public
-        senderIsOrigin()
         isRefundable(secretHash, msg.sender)
     {
-        payable(msg.sender).transfer(swaps[secretHash].value);
+        (bool ok, ) = payable(msg.sender).call{value: swaps[secretHash].value}("");
+        require(ok == true);
         swaps[secretHash].state = State.Refunded;
     }
 }

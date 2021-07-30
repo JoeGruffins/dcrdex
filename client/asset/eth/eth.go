@@ -400,12 +400,12 @@ func (*ExchangeWallet) PayFee(address string, regFee uint64) (asset.Coin, error)
 }
 
 // sendToAddr sends funds from acct to addr.
-func (eth *ExchangeWallet) sendToAddr(addr common.Address, amt, gasFee *big.Int) (common.Hash, error) {
+func (eth *ExchangeWallet) sendToAddr(addr common.Address, amt, gasPrice *big.Int) (common.Hash, error) {
 	tx := map[string]string{
 		"from":     fmt.Sprintf("0x%x", eth.acct.Address),
 		"to":       fmt.Sprintf("0x%x", addr),
 		"value":    fmt.Sprintf("0x%x", amt),
-		"gasPrice": fmt.Sprintf("0x%x", gasFee),
+		"gasPrice": fmt.Sprintf("0x%x", gasPrice),
 	}
 	return eth.node.sendTransaction(eth.ctx, tx)
 }
