@@ -441,12 +441,18 @@ func testSendSignedTransaction(t *testing.T) {
 		t.Fatalf("%d confs reported for unmined transaction", confs)
 	}
 
-	bal, _ := ethClient.balance(ctx)
+	pendingTxs, err := ethClient.pendingTransactions()
+	if err != nil {
+		t.Fatalf("cant get pending txs: %v", err)
+	}
+	spew.Dump(pendingTxs)
+
 	if bal.PendingIn.Cmp(dexeth.GweiToWei(1)) != 0 { // We sent it to ourselves.
 		t.Fatalf("pending in not showing")
 	}
 
-	if bal.PendingOut.Cmp(dexeth.GweiToWei(1)) != 0 {
+	fee := uint64(21000 * 300) // gwei
+	if bal.PendingOut.Cmp(dexeth.GweiToWei(1+fee)) != 0 {
 		t.Fatalf("pending out not showing")
 	}
 

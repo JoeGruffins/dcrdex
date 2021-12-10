@@ -208,12 +208,16 @@ func (n *nodeClient) balance(ctx context.Context) (*Balance, error) {
 	ethSigner := types.LatestSigner(n.leth.ApiBackend.ChainConfig()) // "latest" good for pending
 
 	for _, tx := range pendingTxs {
+		v := tx.Value()
+		to := tx.To()
+		if *to == n.creds.addr {
+			incoming.Add(incoming, v)
+		}
 		from, _ := ethSigner.Sender(tx) // zero Address on error
 		if from != n.creds.addr {
 			continue
 		}
 		addFees(tx)
-		v := tx.Value()
 		if v.Cmp(zero) == 0 {
 			// If zero value, attempt to find redemptions or refunds that pay
 			// to us.
