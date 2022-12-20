@@ -59,7 +59,7 @@ of the specification laid out in this document.
 messaging protocols and communication layer technologies that are to be used
 for the DEX API.
 
-* [[comm.mediawiki#websockets|WebSockets]]
+* [[comm.mediawiki/#websockets|WebSockets]]
 * [[comm.mediawiki/#encoding|Data Encodings]]
 ** [[comm.mediawiki/#timestamps|Timestamps]]
 ** [[comm.mediawiki/#rate-encoding|Rate Encoding]]

@@ -1,6 +1,17 @@
 =Communication Protocols=
 
-__TOC__
+__NOTOC__
+==Contents==
+* [[#websockets|WebSockets]]
+* [[#encoding|Data Encodings]]
+** [[#timestamps|Timestamps]]
+** [[#rate-encoding|Rate Encoding]]
+** [[#coin-id|Coin ID]]
+* [[#message-protocol|Message Protocol]]
+* [[#session-authentication|Session Authentication]]
+* [[#http|HTTP]]
+
+----
 
 ==WebSockets==
 
