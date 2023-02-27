@@ -223,3 +223,21 @@ func Test_utxoSetDiff(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkLeastOverFund(b *testing.B) {
+	// Same amounts every time.
+	rnd := rand.New(rand.NewSource(1))
+	utxos := make([]*compositeUTXO, 2_000)
+	for i := range utxos {
+		utxo := &compositeUTXO{
+			rpc: &walletjson.ListUnspentResult{
+				Amount: float64(1+rnd.Int31n(100)) / float64(1e8),
+			},
+		}
+		utxos[i] = utxo
+	}
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		leastOverFund(10_000, utxos)
+	}
+}
