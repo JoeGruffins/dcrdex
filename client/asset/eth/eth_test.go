@@ -4817,6 +4817,7 @@ func TestReceiptCache(t *testing.T) {
 		r: &types.Receipt{
 			Type: 50,
 		},
+		tx:         new(types.Transaction),
 		lastAccess: time.Now(),
 	}
 
@@ -4824,12 +4825,12 @@ func TestReceiptCache(t *testing.T) {
 	copy(txHash[:], encode.RandomBytes(32))
 	c[txHash] = r
 
-	if r := m.cachedReceipt(txHash); r == nil {
+	if r, _ := m.cachedReceipt(txHash); r == nil {
 		t.Fatalf("cached receipt not returned")
 	}
 
 	r.lastAccess = time.Now().Add(-(unconfirmedReceiptExpiration + 1))
-	if r := m.cachedReceipt(txHash); r != nil {
+	if r, _ := m.cachedReceipt(txHash); r != nil {
 		t.Fatalf("expired receipt returned")
 	}
 
@@ -4840,7 +4841,7 @@ func TestReceiptCache(t *testing.T) {
 
 	// An if it was confirmed, it would be returned.
 	r.confirmed = true
-	if r := m.cachedReceipt(txHash); r == nil {
+	if r, _ := m.cachedReceipt(txHash); r == nil {
 		t.Fatalf("confirmed receipt not returned")
 	}
 

@@ -331,6 +331,7 @@ func (p *provider) subscribeHeaders(ctx context.Context, sub ethereum.Subscripti
 // stored in-memory for up to receiptCacheExpiration.
 type receiptRecord struct {
 	r          *types.Receipt
+	tx         *types.Transaction
 	lastAccess time.Time
 	confirmed  bool
 }
@@ -735,7 +736,7 @@ func (m *multiRPCClient) reconfigure(ctx context.Context, settings map[string]st
 	return nil
 }
 
-func (m *multiRPCClient) cachedReceipt(txHash common.Hash) *types.Receipt {
+func (m *multiRPCClient) cachedReceipt(txHash common.Hash) (*types.Receipt, *types.Transaction) {
 	m.receipts.Lock()
 	defer m.receipts.Unlock()
 
@@ -765,22 +766,22 @@ func (m *multiRPCClient) cachedReceipt(txHash common.Hash) *types.Receipt {
 			cached.lastAccess = time.Now()
 		}
 		if time.Since(cached.lastAccess) < unconfirmedReceiptExpiration {
-			return cached.r
+			return cached.r, cached.tx
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (m *multiRPCClient) transactionReceipt(ctx context.Context, txHash common.Hash) (r *types.Receipt, tx *types.Transaction, err error) {
+	if r, tx = m.cachedReceipt(txHash); r != nil {
+		return r, tx, nil
+	}
+
 	// TODO
 	// TODO: Plug in to the monitoredTx system from #1638.
 	// TODO
 	if tx, _, err = m.getTransaction(ctx, txHash); err != nil {
 		return nil, nil, err
-	}
-
-	if r = m.cachedReceipt(txHash); r != nil {
-		return r, tx, nil
 	}
 
 	// Fetch a fresh one.
@@ -806,6 +807,7 @@ func (m *multiRPCClient) transactionReceipt(ctx context.Context, txHash common.H
 	m.receipts.Lock()
 	m.receipts.cache[txHash] = &receiptRecord{
 		r:          r,
+		tx:         tx,
 		lastAccess: time.Now(),
 		confirmed:  confs > txConfsNeededToConfirm,
 	}
