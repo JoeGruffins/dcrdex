@@ -47,6 +47,9 @@ const (
 	// last request. There is no persistent storage, so all receipts are cached
 	// in-memory.
 	receiptCacheExpiration       = time.Hour
+	pendingTxCheckInterval       = time.Second * 12
+	pendingTxCheckCooldown       = time.Second * 2
+	pendingTxTimeout             = time.Minute * 2
 	unconfirmedReceiptExpiration = time.Minute
 	tipCapSuggestionExpiration   = time.Hour
 	brickedFailCount             = 100
@@ -336,6 +339,11 @@ type receiptRecord struct {
 	confirmed  bool
 }
 
+type pendingTx struct {
+	tx       *types.Transaction
+	sendTime time.Time
+}
+
 // multiRPCClient is an ethFetcher backed by one or more public RPC providers.
 type multiRPCClient struct {
 	cfg     *params.ChainConfig
@@ -367,6 +375,86 @@ type multiRPCClient struct {
 		cache     map[common.Hash]*receiptRecord
 		lastClean time.Time
 	}
+
+	pendingTxs struct {
+		sync.RWMutex
+		cache map[common.Hash]*pendingTx
+		check chan struct{}
+	}
+}
+
+func (m *multiRPCClient) monitorPendingTxs(ctx context.Context) {
+	var lastCheck time.Time
+	checkPending := func() {
+		if time.Since(lastCheck) < pendingTxCheckCooldown {
+			return
+		}
+		m.pendingTxs.RLock()
+		pts := make([]*pendingTx, 0, len(m.pendingTxs.cache))
+		for _, pt := range m.pendingTxs.cache {
+			pts = append(pts, pt)
+		}
+		m.pendingTxs.RUnlock()
+		for _, pt := range pts {
+			txHash := pt.tx.Hash()
+			// timeout is shorter than normal. This is blocking, and
+			// we can check again next time, so fail if the response
+			// is not instantaneous.
+			innerCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+			// Using transactionReceipt in order to leverage the
+			// receipt cache which will avoid an rpc call if the tx
+			// is there. This works as apposed to checking confirmations
+			// because a tx must have at least one confirmation in
+			// order to get the receipt.
+			_, _, err := m.transactionReceipt(innerCtx, txHash)
+			cancel()
+			if err != nil {
+				if !errors.Is(err, asset.CoinNotFoundError) {
+					m.log.Warnf("Problem getting pending transaction receipt for %v: %w.", txHash, err)
+					continue
+				}
+				// Coin was not found. If it has been too long,
+				// assume it never made it out of the mempool
+				// and is lost.
+				if time.Since(pt.sendTime) > pendingTxTimeout {
+					m.log.Warnf("Time out getting pending transaction receipt for %v.", txHash)
+					m.pendingTxs.Lock()
+					delete(m.pendingTxs.cache, txHash)
+					m.pendingTxs.Unlock()
+				}
+				continue
+			}
+			m.pendingTxs.Lock()
+			delete(m.pendingTxs.cache, txHash)
+			m.pendingTxs.Unlock()
+		}
+		lastCheck = time.Now()
+	}
+	ticker := time.NewTicker(pendingTxCheckInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.pendingTxs.check:
+			checkPending()
+		case <-ticker.C:
+			checkPending()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (m *multiRPCClient) checkPendingTxs(ctx context.Context) {
+	select {
+	case m.pendingTxs.check <- struct{}{}:
+	case <-ctx.Done():
+	}
+}
+
+func (m *multiRPCClient) addPendingTx(tx *types.Transaction) {
+	m.pendingTxs.Lock()
+	m.pendingTxs.cache[tx.Hash()] = &pendingTx{tx: tx, sendTime: time.Now()}
+	m.pendingTxs.Unlock()
 }
 
 var _ ethFetcher = (*multiRPCClient)(nil)
@@ -387,6 +475,8 @@ func newMultiRPCClient(dir string, endpoints []string, log dex.Logger, cfg *para
 		endpoints: endpoints,
 	}
 	m.receipts.cache = make(map[common.Hash]*receiptRecord)
+	m.pendingTxs.cache = make(map[common.Hash]*pendingTx)
+	m.pendingTxs.check = make(chan struct{})
 	m.receipts.lastClean = time.Now()
 
 	return m, nil
@@ -586,11 +676,19 @@ func (m *multiRPCClient) connect(ctx context.Context) (err error) {
 		return fmt.Errorf("no connections established")
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		m.monitorPendingTxs(ctx)
+		wg.Done()
+	}()
+
 	go func() {
 		<-ctx.Done()
 		for _, p := range m.providerList() {
 			p.shutdown()
 		}
+		wg.Wait()
 	}()
 
 	return nil
@@ -1127,8 +1225,15 @@ func (m *multiRPCClient) locked() bool {
 	return status != "Unlocked"
 }
 
-func (m *multiRPCClient) pendingTransactions() ([]*types.Transaction, error) {
-	return []*types.Transaction{}, nil
+func (m *multiRPCClient) pendingTransactions(ctx context.Context) ([]*types.Transaction, error) {
+	m.checkPendingTxs(ctx)
+	m.pendingTxs.RLock()
+	pts := make([]*types.Transaction, len(m.pendingTxs.cache))
+	for _, pt := range m.pendingTxs.cache {
+		pts = append(pts, pt.tx)
+	}
+	m.pendingTxs.RUnlock()
+	return pts, nil
 }
 
 func (m *multiRPCClient) shutdown() {
@@ -1172,6 +1277,10 @@ func (m *multiRPCClient) sendTransaction(ctx context.Context, txOpts *bind.Trans
 		return nil, fmt.Errorf("signing error: %v", err)
 	}
 
+	if err := m.sendSignedTransaction(ctx, tx); err != nil {
+		return nil, err
+	}
+	m.addPendingTx(tx)
 	return tx, m.sendSignedTransaction(ctx, tx)
 }
 

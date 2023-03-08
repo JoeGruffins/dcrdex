@@ -156,7 +156,7 @@ func (n *testNode) chainConfig() *params.ChainConfig {
 	return params.AllEthashProtocolChanges
 }
 
-func (n *testNode) pendingTransactions() ([]*types.Transaction, error) {
+func (n *testNode) pendingTransactions(_ context.Context) ([]*types.Transaction, error) {
 	return n.pendingTxs, nil
 }
 

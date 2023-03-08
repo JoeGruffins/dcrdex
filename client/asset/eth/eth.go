@@ -319,7 +319,7 @@ type ethFetcher interface {
 	headerByHash(ctx context.Context, txHash common.Hash) (*types.Header, error)
 	lock() error
 	locked() bool
-	pendingTransactions() ([]*types.Transaction, error)
+	pendingTransactions(ctx context.Context) ([]*types.Transaction, error)
 	shutdown()
 	sendSignedTransaction(ctx context.Context, tx *types.Transaction) error
 	sendTransaction(ctx context.Context, txOpts *bind.TransactOpts, to common.Address, data []byte) (*types.Transaction, error)
@@ -3704,7 +3704,7 @@ func (w *assetWallet) balanceWithTxPool() (*Balance, error) {
 		return nil, fmt.Errorf("balance error: %v", err)
 	}
 
-	pendingTxs, err := w.node.pendingTransactions()
+	pendingTxs, err := w.node.pendingTransactions(w.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting pending txs: %w", err)
 	}

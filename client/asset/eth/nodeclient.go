@@ -198,7 +198,7 @@ func (n *nodeClient) transactionReceipt(ctx context.Context, txHash common.Hash)
 }
 
 // pendingTransactions returns pending transactions.
-func (n *nodeClient) pendingTransactions() ([]*types.Transaction, error) {
+func (n *nodeClient) pendingTransactions(_ context.Context) ([]*types.Transaction, error) {
 	return n.leth.ApiBackend.GetPoolTransactions()
 }
 
