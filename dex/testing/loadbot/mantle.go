@@ -81,7 +81,7 @@ out:
 		case note := <-m.notes:
 			if note.Severity() >= db.ErrorLevel {
 				m.fatalError("Error note received: %s", mustJSON(note))
-				return
+				continue
 			}
 			switch n := note.(type) {
 			case *core.FeePaymentNote:
@@ -111,9 +111,6 @@ out:
 				}
 			case *core.EpochNotification:
 				m.log.Debugf("Epoch note received: %s", mustJSON(note))
-				if n.MarketID == market {
-					m.replenishBalances()
-				}
 			case *core.MatchNote:
 				if n.Topic() == core.TopicNewMatch {
 					atomic.AddUint32(&matchCounter, 1)
@@ -185,7 +182,9 @@ func newMantle(name string) (*Mantle, error) {
 // fatalError kills the LoadBot by cancelling the global Context.
 func (m *Mantle) fatalError(s string, a ...interface{}) {
 	m.log.Criticalf(s, a...)
-	quit()
+	if !ignoreErrors || ctx.Err() != nil {
+		quit()
+	}
 }
 
 // order places an order on the market.
@@ -407,10 +406,20 @@ func (m *Mantle) createWallet(symbol, node string, minFunds, maxFunds uint64, nu
 
 		if nCoins != 0 {
 			chunk := (maxFunds + minFunds) / 2 / uint64(nCoins)
-			for i := 0; i < nCoins; i++ {
+			for i := 0; i < nCoins; {
 				if err = send(walletSymbol, node, addr, chunk); err != nil {
+					if ignoreErrors && ctx.Err() == nil {
+						m.log.Errorf("Trouble sending %d %s to %s: %v\n Sleeping and trying again.", valString(chunk, walletSymbol), walletSymbol, addr, err)
+						// It often happens that the wallet is not able to
+						// create enough outputs. mine and try indefinitely
+						// if we are ignoring errors.
+						<-harnessCtl(ctx, walletSymbol, fmt.Sprintf("./mine-%s", node), "1")
+						time.Sleep(time.Second)
+						continue
+					}
 					return "", err
 				}
+				i++
 			}
 		}
 		<-harnessCtl(ctx, walletSymbol, fmt.Sprintf("./mine-%s", node), "1")
@@ -437,6 +446,7 @@ func (m *Mantle) createWallet(symbol, node string, minFunds, maxFunds uint64, nu
 }
 
 func send(symbol, node, addr string, val uint64) error {
+	log.Tracef("Sending %s %s from %s node to %s", valString(val, symbol), symbol, node, addr)
 	var res *harnessResult
 	switch symbol {
 	case btc, dcr, ltc, doge, firo, bch, dgb:
@@ -466,10 +476,15 @@ func send(symbol, node, addr string, val uint64) error {
 
 }
 
-// replenishBalances will run replenishBalance for all wallets.
-func (m *Mantle) replenishBalances() {
-	for _, w := range m.wallets {
-		m.replenishBalance(w)
+type walletMinMax map[uint32]struct {
+	min, max uint64
+}
+
+// replenishBalances will run replenishBalance for all wallets using the
+// provided min and max funds.
+func (m *Mantle) replenishBalances(wmm walletMinMax) {
+	for k, v := range wmm {
+		m.replenishBalance(m.wallets[k], v.min, v.max)
 	}
 	// TODO: Check balance in parent wallets? We send them some initial funds,
 	// and maybe that's enough for our purposes, since it just covers fees.
@@ -477,7 +492,7 @@ func (m *Mantle) replenishBalances() {
 
 // replenishBalance will bring the balance with allowable limits by requesting
 // funds from or sending funds to the wallet's node.
-func (m *Mantle) replenishBalance(w *botWallet) {
+func (m *Mantle) replenishBalance(w *botWallet, minFunds, maxFunds uint64) {
 	// Get the Balance from the user in case it changed while while this note
 	// was in the notification pipeline.
 	bal, err := m.AssetBalance(w.assetID)
@@ -487,21 +502,32 @@ func (m *Mantle) replenishBalance(w *botWallet) {
 	}
 
 	m.log.Debugf("Balance note received for %s (minFunds = %s, maxFunds = %s): %s",
-		w.symbol, valString(w.minFunds, w.symbol), valString(w.maxFunds, w.symbol), mustJSON(bal))
+		w.symbol, valString(minFunds, w.symbol), valString(maxFunds, w.symbol), mustJSON(bal))
 
 	// If over or under max, make the average of the two.
-	wantBal := (w.maxFunds + w.minFunds) / 2
+	wantBal := (maxFunds + minFunds) / 2
 
-	if bal.Available < w.minFunds {
+	if bal.Available < minFunds {
 		chunk := (wantBal - bal.Available) / uint64(w.numCoins)
-		for i := 0; i < w.numCoins; i++ {
+		for i := 0; i < w.numCoins; {
 			m.log.Debugf("Requesting %s from %s alpha node", valString(chunk, w.symbol), w.symbol)
 			if err = send(w.symbol, alpha, w.address, chunk); err != nil {
+				if ignoreErrors && ctx.Err() == nil {
+					m.log.Errorf("Trouble sending %d %s to %s: %v\n Sleeping and trying again.",
+						valString(chunk, w.symbol), w.symbol, w.address, err)
+					// It often happens that the wallet is not able to
+					// create enough outputs. mine and try indefinitely
+					// if we are ignoring errors.
+					<-harnessCtl(ctx, w.symbol, fmt.Sprintf("./mine-%s", alpha), "1")
+					time.Sleep(time.Second)
+					continue
+				}
 				m.fatalError("error refreshing balance for %s: %v", w.symbol, err)
 				return
 			}
+			i++
 		}
-	} else if bal.Available > w.maxFunds {
+	} else if bal.Available > maxFunds {
 		// Send some back to the alpha address.
 		amt := bal.Available - wantBal
 		m.log.Debugf("Sending %s back to %s alpha node", valString(amt, w.symbol), w.symbol)
@@ -563,7 +589,11 @@ func midGap(book *core.OrderBook) uint64 {
 
 // truncate rounds the provided v down to an integer-multiple of mod.
 func truncate(v, mod int64) uint64 {
-	return uint64(v - (v % mod))
+	t := uint64(v - (v % mod))
+	if t < uint64(mod) {
+		return uint64(mod)
+	}
+	return t
 }
 
 // clamp returns the closest value to v within the bounds of [min, max].
@@ -599,8 +629,6 @@ type botWallet struct {
 	symbol        string
 	pass          []byte
 	assetID       uint32
-	minFunds      uint64
-	maxFunds      uint64
 	address       string
 	parentAddress string
 	numCoins      int
@@ -732,8 +760,6 @@ func newBotWallet(symbol, node, name string, port string, pass []byte, minFunds,
 		symbol:     symbol,
 		pass:       pass,
 		assetID:    form.AssetID,
-		minFunds:   minFunds,
-		maxFunds:   maxFunds,
 		numCoins:   numCoins,
 	}
 }
