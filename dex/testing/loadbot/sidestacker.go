@@ -286,8 +286,7 @@ func (s *sideStacker) cancellableOrders(m *Mantle) (
 	xc := xcs[hostAddr]
 	mkt := xc.Markets[market]
 	for _, ord := range mkt.Orders {
-		cancellable := ord.Status == order.OrderStatusBooked && !ord.Cancelling
-		if ord.Status < order.OrderStatusExecuted && cancellable {
+		if ord.Status == order.OrderStatusBooked && !ord.Cancelling {
 			if ord.Sell {
 				worstSells = append(worstSells, ord)
 			} else {
