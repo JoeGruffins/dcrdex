@@ -2761,7 +2761,6 @@ func (w *assetWallet) Redeem(form *asset.RedeemForm, feeWallet *assetWallet, non
 	// This is still a fee estimate. If we add a redemption confirmation method
 	// as has been discussed, then maybe the fees can be updated there.
 	fees := g.RedeemN(len(form.Redemptions)) * form.FeeSuggestion
-
 	return txs, outputCoin, fees, nil
 }
 
@@ -4530,14 +4529,6 @@ func (w *assetWallet) confirmTransaction(coinID dex.Bytes, confirmTx *asset.Conf
 	var txHash common.Hash
 	copy(txHash[:], coinID)
 
-	// If the status of the swap was refunded when we tried to refund, the
-	// zero hash is saved. We don't know the tx that altered the swap or
-	// how many confs it has. Assume confirmed.
-	zeroHash := common.Hash{}
-	if txHash == zeroHash {
-		return confStatus(w.finalizeConfs, w.finalizeConfs, txHash), nil
-	}
-
 	contractVer, locator, err := dexeth.DecodeContractData(confirmTx.Contract())
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode contract data: %w", err)
@@ -4547,13 +4538,12 @@ func (w *assetWallet) confirmTransaction(coinID dex.Bytes, confirmTx *asset.Conf
 
 	// If we have local information, use that.
 	if found, s := w.localTxStatus(txHash); found {
-		if s.assumedLost || len(s.nonceReplacement) > 0 {
-			if !s.feeReplacement {
-				// Tell core to update it's coin ID.
-				txHash = common.HexToHash(s.nonceReplacement)
-			} else {
-				return nil, asset.ErrTxLost
-			}
+		if s.assumedLost {
+			return nil, asset.ErrTxLost
+		}
+		if len(s.nonceReplacement) > 0 {
+			// Tell core to update it's coin ID.
+			txHash = common.HexToHash(s.nonceReplacement)
 		}
 
 		var confirmStatus *asset.ConfirmTxStatus
@@ -5818,6 +5808,10 @@ func (w *assetWallet) userActionNonceReplacement(actionB []byte) error {
 			w.log.Infof("Abandoning transaction %s via user action", txHash)
 			wt.AssumedLost = true
 			w.tryStoreDBTx(wt)
+			pendingTx := w.pendingTxs[idx]
+			if pendingTx.Nonce.Cmp(w.confirmedNonceAt) == 0 {
+				w.pendingNonceAt.Add(w.pendingNonceAt, big.NewInt(-1))
+			}
 			copy(w.pendingTxs[idx:], w.pendingTxs[idx+1:])
 			w.pendingTxs = w.pendingTxs[:len(w.pendingTxs)-1]
 			return nil
@@ -5884,6 +5878,7 @@ func (w *assetWallet) userActionRecoverNonces(actionB []byte) error {
 	if !*action.Recover {
 		// Don't reset recoveryRequestSent. They won't see this message again until
 		// they reboot.
+		w.emit.ActionResolved(w.missingNoncesActionID())
 		return nil
 	}
 	maxFeeRate, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
@@ -5894,6 +5889,7 @@ func (w *assetWallet) userActionRecoverNonces(actionB []byte) error {
 	defer w.nonceMtx.Unlock()
 	missingNonces := findMissingNonces(w.confirmedNonceAt, w.pendingNonceAt, w.pendingTxs)
 	if len(missingNonces) == 0 {
+		w.emit.ActionResolved(w.missingNoncesActionID())
 		return nil
 	}
 	for i, n := range missingNonces {
