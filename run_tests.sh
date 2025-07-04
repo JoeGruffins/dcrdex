@@ -33,7 +33,7 @@ do
 	fi
 
 	# run tests
-	env GORACE="halt_on_error=1" go test -race -short ./...
+	env GORACE="halt_on_error=1" go test -race -short -ldflags "-extldflags '-Wl,--allow-multiple-definition'"  ./...
 done
 
 cd "$dir"
@@ -43,7 +43,7 @@ go run ./client/core/localetest/main.go
 
 # -race in go tests above requires cgo, but disable it for the compile tests below
 export CGO_ENABLED=0
-go build ./...
+go build -ldflags "-extldflags '-Wl,--allow-multiple-definition'" ./...
 go build -tags harness -o /dev/null ./client/cmd/simnet-trade-tests
 go build -tags systray -o /dev/null ./client/cmd/bisonw
 
