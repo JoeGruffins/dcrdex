@@ -2197,6 +2197,7 @@ func (m *mexc) snapPrice(symbol string, price float64) float64 {
 	}
 	tickSize, err := strconv.ParseFloat(tickSizeStr, 64)
 	if err != nil {
+		m.log.Errorf("Failed to parse tickSize '%s' for symbol %s: %v", tickSizeStr, symbol, err)
 		return price
 	}
 	return float64(int64(price/tickSize+0.5)) * tickSize
@@ -2210,6 +2211,7 @@ func (m *mexc) snapQuantity(symbol string, qty float64) float64 {
 	}
 	stepSize, err := strconv.ParseFloat(stepSizeStr, 64)
 	if err != nil {
+		m.log.Errorf("Failed to parse stepSize '%s' for symbol %s: %v", stepSizeStr, symbol, err)
 		return qty
 	}
 	return float64(int64(qty/stepSize)) * stepSize
@@ -2223,6 +2225,7 @@ func (m *mexc) validateMinNotional(symbol string, price, qty float64) bool {
 	}
 	minNotional, err := strconv.ParseFloat(minNotionalStr, 64)
 	if err != nil {
+		m.log.Errorf("Failed to parse minNotional '%s' for symbol %s: %v", minNotionalStr, symbol, err)
 		return true
 	}
 	return price*qty >= minNotional
