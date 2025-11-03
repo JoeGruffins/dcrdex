@@ -617,6 +617,7 @@ func mexcCoinNetworkToDexSymbol(coin, network string) string {
 	// Map MEXC network names to DEX network names
 	networkMap := map[string]string{
 		"polygon": "polygon",
+		"matic":   "polygon", // MEXC uses "MATIC" for Polygon network
 		"eth":     "eth",
 		"base":    "base",
 		// Add more as needed
@@ -1144,6 +1145,19 @@ func (m *mexc) minimumWithdraws(baseID, quoteID uint32) (base uint64, quote uint
 		quote = quoteInfo.minimum
 	}
 	return
+}
+
+// withdrawInfo returns withdrawal information for a specific asset.
+func (m *mexc) withdrawInfo(assetID uint32) (*mexcWithdrawInfo, error) {
+	minsI := m.minWithdraw.Load()
+	if minsI == nil {
+		return nil, fmt.Errorf("no withdraw info loaded")
+	}
+	mins := minsI.(map[uint32]*mexcWithdrawInfo)
+	if info, found := mins[assetID]; found {
+		return info, nil
+	}
+	return nil, fmt.Errorf("no withdraw info for asset ID %d", assetID)
 }
 
 func (m *mexc) Markets(ctx context.Context) (map[string]*Market, error) {
@@ -3019,6 +3033,22 @@ func (m *mexc) Withdraw(ctx context.Context, assetID uint32, amt uint64, address
 	if err != nil {
 		return "", 0, fmt.Errorf("error getting unit info for asset %d: %w", assetID, err)
 	}
+
+	// Validate and step withdrawal amount
+	info, err := m.withdrawInfo(assetID)
+	if err != nil {
+		return "", 0, fmt.Errorf("cannot verify withdrawal minimum for asset %d (%s): %w. Check if deposits/withdrawals are enabled on MEXC for this network", assetID, symbol, err)
+	}
+
+	if amt < info.minimum {
+		convAmt := float64(amt) / float64(ui.Conventional.ConversionFactor)
+		convMin := float64(info.minimum) / float64(ui.Conventional.ConversionFactor)
+		return "", 0, fmt.Errorf("withdrawal amount %.8f %s is below MEXC minimum %.8f %s. Configure AutoRebalanceConfig.MinBaseTransfer or MinQuoteTransfer >= %d atomic units",
+			convAmt, symbol, convMin, symbol, info.minimum)
+	}
+
+	// Step to lot size like binance does
+	amt = steppedQty(amt, info.lotSize)
 
 	// Convert from atomic units to conventional
 	amountConv := float64(amt) / float64(ui.Conventional.ConversionFactor)
