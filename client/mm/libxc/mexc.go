@@ -128,12 +128,11 @@ type mexcWithdrawInfo struct {
 	lotSize uint64
 }
 
-// mexcOrderBook manages an order book for a single market following Binance's pattern.
-// It keeps the order book synced using REST snapshots and WebSocket incremental updates.
+// mexcOrderBook manages an order book for a single market.
+// It keeps the order book synced using REST snapshots and WebSocket full snapshot updates.
 type mexcOrderBook struct {
 	mtx            sync.RWMutex
 	synced         atomic.Bool
-	syncChan       chan struct{}
 	numSubscribers uint32
 	cm             *dex.ConnectionMaster
 
@@ -244,33 +243,19 @@ func (b *mexcOrderBook) convertBookUpdate(update *mxctypes.BookUpdate) (bids, as
 // Connect implements the dex.Connector interface.
 // Synchronizes orderbook: buffer WS updates, fetch REST snapshot, apply buffered updates.
 func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
-	const updateIDUnsynced = math.MaxUint64
-
 	// Synchronization variables
 	var syncMtx sync.Mutex
 	var syncCache []*mxctypes.BookUpdate
-	syncChan := make(chan struct{})
-	b.syncChan = syncChan
-	var updateID uint64 = updateIDUnsynced
-	acceptedUpdate := false
 
 	resyncChan := make(chan struct{}, 1)
 
 	desync := func(resync bool) {
-		// Clear the sync cache, set the special ID, trigger a book refresh.
+		// Clear the sync cache and trigger a book refresh.
 		syncMtx.Lock()
 		defer syncMtx.Unlock()
 		syncCache = make([]*mxctypes.BookUpdate, 0)
-		acceptedUpdate = false
-		if updateID != updateIDUnsynced {
+		if b.synced.Load() {
 			b.synced.Store(false)
-			updateID = updateIDUnsynced
-			// Close old syncChan and create new one for next sync
-			if syncChan != nil {
-				close(syncChan)
-			}
-			syncChan = make(chan struct{})
-			b.syncChan = syncChan
 			if resync {
 				select {
 				case resyncChan <- struct{}{}:
@@ -281,17 +266,13 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 	}
 
 	acceptUpdate := func(update *mxctypes.BookUpdate) bool {
-		if updateID == updateIDUnsynced {
+		if !b.synced.Load() {
 			// Book is still syncing. Add it to the sync cache.
 			syncCache = append(syncCache, update)
 			return true
 		}
 
-		// MEXC protobuf doesn't provide sequence IDs, accept all updates after sync.
-		if !acceptedUpdate {
-			acceptedUpdate = true
-		}
-
+		// MEXC sends full snapshots; no sequence validation needed.
 		bids, asks, err := b.convertBookUpdate(update)
 		if err != nil {
 			b.log.Errorf("Error parsing MEXC book update: %v", err)
@@ -303,11 +284,11 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 		return true
 	}
 
-	processSyncCache := func(snapshotID uint64) bool {
+	processSyncCache := func() bool {
 		syncMtx.Lock()
 		defer syncMtx.Unlock()
 
-		updateID = snapshotID
+		// Process all cached updates received during sync
 		for _, update := range syncCache {
 			if !acceptUpdate(update) {
 				return false
@@ -315,11 +296,6 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 		}
 
 		b.synced.Store(true)
-		if syncChan != nil {
-			close(syncChan)
-			b.syncChan = nil
-			syncChan = nil
-		}
 		return true
 	}
 
@@ -341,7 +317,7 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 		b.book.clear()
 		b.book.update(bids, asks)
 
-		return processSyncCache(snapshot.LastUpdateID)
+		return processSyncCache()
 	}
 
 	var wg sync.WaitGroup
