@@ -84,11 +84,9 @@ type OrderbookSnapshot struct {
 // BookUpdate represents an incremental order book update from WebSocket
 // This corresponds to the protobuf Spot message depth updates
 type BookUpdate struct {
-	Symbol        string
-	FirstUpdateID uint64 // U in MEXC protobuf
-	LastUpdateID  uint64 // u in MEXC protobuf
-	Bids          [][2]float64
-	Asks          [][2]float64
+	Symbol string
+	Bids   [][2]float64
+	Asks   [][2]float64
 }
 
 // DepthLevel represents a single price level as strings prior to unit conversion.

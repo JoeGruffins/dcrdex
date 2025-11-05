@@ -140,7 +140,6 @@ type mexcOrderBook struct {
 	book        *orderbook
 	updateQueue chan *mxctypes.BookUpdate
 
-	lastUpdateID          uint64
 	baseConversionFactor  uint64
 	quoteConversionFactor uint64
 	log                   dex.Logger
@@ -245,7 +244,6 @@ func (b *mexcOrderBook) convertBookUpdate(update *mxctypes.BookUpdate) (bids, as
 func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 	// Synchronization variables
 	var syncMtx sync.Mutex
-	var syncCache []*mxctypes.BookUpdate
 
 	resyncChan := make(chan struct{}, 1)
 
@@ -253,9 +251,7 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 		// Clear the sync cache and trigger a book refresh.
 		syncMtx.Lock()
 		defer syncMtx.Unlock()
-		syncCache = make([]*mxctypes.BookUpdate, 0)
-		if b.synced.Load() {
-			b.synced.Store(false)
+		if synced := b.synced.Swap(false); synced {
 			if resync {
 				select {
 				case resyncChan <- struct{}{}:
@@ -266,12 +262,13 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 	}
 
 	acceptUpdate := func(update *mxctypes.BookUpdate) bool {
+		syncMtx.Lock()
+		defer syncMtx.Unlock()
+		// If we are not synced throw away the book. We will request a
+		// new one after synced.
 		if !b.synced.Load() {
-			// Book is still syncing. Add it to the sync cache.
-			syncCache = append(syncCache, update)
 			return true
 		}
-
 		// MEXC sends full snapshots; no sequence validation needed.
 		bids, asks, err := b.convertBookUpdate(update)
 		if err != nil {
@@ -284,22 +281,9 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 		return true
 	}
 
-	processSyncCache := func() bool {
+	syncOrderbook := func() bool {
 		syncMtx.Lock()
 		defer syncMtx.Unlock()
-
-		// Process all cached updates received during sync
-		for _, update := range syncCache {
-			if !acceptUpdate(update) {
-				return false
-			}
-		}
-
-		b.synced.Store(true)
-		return true
-	}
-
-	syncOrderbook := func() bool {
 		snapshot, err := b.getSnapshot()
 		if err != nil {
 			b.log.Errorf("Error getting orderbook snapshot: %v", err)
@@ -312,31 +296,26 @@ func (b *mexcOrderBook) Connect(ctx context.Context) (*sync.WaitGroup, error) {
 			return false
 		}
 
-		b.log.Debugf("Got %s orderbook snapshot with update ID %d", b.symbol, snapshot.LastUpdateID)
+		b.log.Debugf("Got %s orderbook snapshot", b.symbol)
 
 		b.book.clear()
 		b.book.update(bids, asks)
 
-		return processSyncCache()
+		b.synced.Store(true)
+		return true
 	}
 
 	var wg sync.WaitGroup
 
-	// Goroutine 1: Process update queue
+	// Goroutine 1: Process updates
 	wg.Add(1)
 	go func() {
-		processUpdate := func(update *mxctypes.BookUpdate) bool {
-			syncMtx.Lock()
-			defer syncMtx.Unlock()
-			return acceptUpdate(update)
-		}
-
 		defer wg.Done()
 		for {
 			select {
 			case update := <-b.updateQueue:
-				if !processUpdate(update) {
-					b.log.Tracef("Bad %s update with ID %d", b.symbol, update.LastUpdateID)
+				if !acceptUpdate(update) {
+					b.log.Tracef("Bad %s update", b.symbol)
 					desync(true)
 				}
 			case <-ctx.Done():
@@ -746,7 +725,7 @@ func (m *mexc) getOrderbookSnapshot(ctx context.Context, symbol string) (*mxctyp
 		return nil, fmt.Errorf("failed to get order book snapshot for %s: %w", symbol, err)
 	}
 
-	m.log.Debugf("Got %s order book snapshot with lastUpdateId %d", symbol, resp.LastUpdateID)
+	m.log.Debugf("Got %s order book snapshot", symbol)
 	return &resp, nil
 }
 
@@ -1467,11 +1446,9 @@ func (m *mexc) handleLimitDepthUpdate(wrapper *pb.PushDataV3ApiWrapper) {
 
 	// Build update from snapshot
 	update := &mxctypes.BookUpdate{
-		Symbol:        symbol,
-		FirstUpdateID: 0,
-		LastUpdateID:  0,
-		Asks:          make([][2]float64, 0, len(depth.GetAsks())),
-		Bids:          make([][2]float64, 0, len(depth.GetBids())),
+		Symbol: symbol,
+		Asks:   make([][2]float64, 0, len(depth.GetAsks())),
+		Bids:   make([][2]float64, 0, len(depth.GetBids())),
 	}
 
 	// Process bids
