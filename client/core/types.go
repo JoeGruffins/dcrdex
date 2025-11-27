@@ -1156,6 +1156,7 @@ type OrderFilter struct {
 		Base  uint32 `json:"baseID"`
 		Quote uint32 `json:"quoteID"`
 	} `json:"market"`
+	IncludePartial bool `json:"includepartial"`
 }
 
 // Account holds data returned from AccountExport.

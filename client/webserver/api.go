@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 
 	"decred.org/dcrdex/client/asset"
@@ -22,6 +23,7 @@ import (
 	"decred.org/dcrdex/dex"
 	"decred.org/dcrdex/dex/config"
 	"decred.org/dcrdex/dex/encode"
+	"decred.org/dcrdex/dex/order"
 )
 
 var zero = encode.ClearBytes
@@ -1224,6 +1226,7 @@ func (s *WebServer) apiOrders(w http.ResponseWriter, r *http.Request) {
 	if !readPost(w, r, filter) {
 		return
 	}
+	filter.IncludePartial = slices.Contains(filter.Statuses, order.OrderStatusExecuted)
 
 	ords, err := s.core.Orders(filter)
 	if err != nil {

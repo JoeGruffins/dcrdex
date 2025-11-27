@@ -1101,8 +1101,46 @@ func (db *BoltDB) Orders(orderFilter *dexdb.OrderFilter) (ords []*dexdb.MetaOrde
 
 	includeArchived := true
 	if len(orderFilter.Statuses) > 0 {
-		filters = append(filters, func(_ []byte, oBkt *bbolt.Bucket) bool {
+		filters = append(filters, func(key []byte, oBkt *bbolt.Bucket) bool {
 			status := order.OrderStatus(intCoder.Uint16(oBkt.Get(statusKey)))
+			if orderFilter.IncludePartial && status == order.OrderStatusCanceled {
+				// Search for a settled match for this order ID.
+				// If one is found keep cycling. No need to return what it found.
+				var hasPartial bool
+				db.filteredMatches(func(mBkt *bbolt.Bucket) bool {
+					if hasPartial {
+						return false
+					}
+					oid := mBkt.Get(orderIDKey)
+					if !bytes.Equal(oid, key) {
+						return false
+					}
+					matchB := getCopy(mBkt, matchKey)
+					if matchB == nil {
+						db.log.Error("nil match bytes")
+						return false
+					}
+					userMatch, _, err := order.DecodeMatch(matchB)
+					if err != nil {
+						db.log.Errorf("error decoding match: %w", err)
+						return false
+					}
+					if userMatch.Address == "" {
+						// Canceled
+						return false
+					}
+					if (userMatch.Side == order.Taker && userMatch.Status < order.MatchComplete) ||
+						(userMatch.Side == order.Maker && userMatch.Status < order.MakerRedeemed) {
+						// Settling
+						return false
+					}
+					hasPartial = true
+					return false
+				}, true, true) // exclude cancels and include archived matches
+				if hasPartial {
+					return true
+				}
+			}
 			return slices.Contains(orderFilter.Statuses, status)
 		})
 		includeArchived = false
