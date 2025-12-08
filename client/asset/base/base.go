@@ -88,8 +88,8 @@ type Driver struct{}
 
 // Open opens the Polygon exchange wallet. Start the wallet with its Run method.
 func (d *Driver) Open(cfg *asset.WalletConfig, logger dex.Logger, net dex.Network) (asset.Wallet, error) {
-	if net == dex.Simnet {
-		return nil, errors.New("simnet not implemented yet")
+	if net == dex.Mainnet {
+		return nil, errors.New("base is disable until we get L1 security fees worked out")
 	}
 	chainCfg, err := ChainConfig(net)
 	if err != nil {
@@ -111,6 +111,8 @@ func (d *Driver) Open(cfg *asset.WalletConfig, logger dex.Logger, net dex.Networ
 
 	var defaultProviders []string
 	switch net {
+	case dex.Simnet:
+		defaultProviders = []string{"http://127.0.0.1:39556"}
 	case dex.Testnet:
 		defaultProviders = []string{
 			"https://base-sepolia-rpc.publicnode.com",
