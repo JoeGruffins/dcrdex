@@ -59,10 +59,10 @@ DASH_ON=$?
 ~/dextest/eth/harness-ctl/alpha attach --exec 'eth.blockNumber' &> /dev/null
 ETH_ON=$?
 
-~/dextest/polygon/harness-ctl/alpha --exec 'eth.blockNumber' &> /dev/null
+~/dextest/polygon/harness-ctl/alpha attach --exec 'eth.blockNumber' &> /dev/null
 POLYGON_ON=$?
 
-~/dextest/base/harness-ctl/alpha --exec 'eth.blockNumber' &> /dev/null
+~/dextest/base/harness-ctl/alpha attach --exec 'eth.blockNumber' &> /dev/null
 BASE_ON=$?
 
 m=$(pgrep -a monerod)

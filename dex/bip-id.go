@@ -613,6 +613,9 @@ var bipIDs = map[uint32]string{
 	// END Ethereum reserved token range
 	// Base reserved token range 61000-61999
 	61000: "usdc.base",
+	61001: "usdc.base",
+	61002: "usdt.base",
+	61004: "base.eth",
 	// END Base reserved token range
 	65536:  "keth",
 	88888:  "ryo[c0ban]",
