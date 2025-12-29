@@ -87,12 +87,12 @@ const (
 
 // See Also: relevant part of hashes.txt above.
 type hashedZip struct {
-	hash     string
-	zip      string
-	dir      string
-	ext      string // zip or tar.bz2
-	os       string
-	arch     string
+	Hash     string `json:"hash"`
+	Zip      string `json:"zip"`
+	Dir      string `json:"dir"`
+	Ext      string `json:"ext"` // zip or tar.bz2
+	Os       string `json:"os"`
+	Arch     string `json:"arch"`
 	valid    bool
 	selected bool
 	version  *moneroVersionV0
@@ -107,6 +107,10 @@ type Download struct {
 	tempDir     string
 	hzips       hashedZips
 	selectedZip *hashedZip
+}
+
+func (d *Download) Hashes() *hashedZips {
+	return &d.hzips
 }
 
 func (d *Download) getSelectedZip() *hashedZip {
@@ -239,12 +243,12 @@ var ErrNoRemoteVersion = errors.New("cannot find appropriate tools version in ha
 // downloadRemoteCanonicalHashesFile downloads hashes.txt from getmonero.org and stores it's
 // local filepath.
 func (d *Download) downloadRemoteCanonicalHashesFile() {
-	hashesFilePath, err := d.downloadHashesFile()
+	hashesFilePath, err := d.DownloadHashesFile()
 	if err != nil {
 		return
 	}
 	d.Log.Trace("Hashes file downloaded")
-	err = d.getHashedZips(hashesFilePath)
+	err = d.GetHashedZips(hashesFilePath)
 	if err != nil {
 		return
 	}
@@ -252,7 +256,7 @@ func (d *Download) downloadRemoteCanonicalHashesFile() {
 	if len(d.hzips) <= 0 {
 		return
 	}
-	err = d.checkHashedZips()
+	err = d.CheckHashedZips()
 	if err != nil {
 		return
 	}
@@ -263,19 +267,19 @@ func (d *Download) downloadRemoteCanonicalHashesFile() {
 	}
 }
 
-func (d *Download) downloadHashesFile() (string, error) {
+func (d *Download) DownloadHashesFile() (string, error) {
 	url := HashesLink
-	toolsPath := d.getToolsTempPath()
-	err := os.MkdirAll(toolsPath, 0700)
-	if err != nil {
-		return "", err
-	}
-	hashesFilePath := filepath.Join(toolsPath, HashesFilename)
-	hashesFile, err := os.Create(hashesFilePath)
-	if err != nil {
-		return "", err
-	}
-	defer hashesFile.Close()
+	//toolsPath := d.getToolsTempPath()
+	//err := os.MkdirAll(toolsPath, 0700)
+	//if err != nil {
+	//	return "", err
+	//}
+	//hashesFilePath := filepath.Join(toolsPath, HashesFilename)
+	//hashesFile, err := os.Create(hashesFilePath)
+	//if err != nil {
+	//	return "", err
+	//}
+	//defer hashesFile.Close()
 
 	resp, err := dexnet.Client.Get(url)
 	if err != nil {
@@ -287,22 +291,28 @@ func (d *Download) downloadHashesFile() (string, error) {
 		return "", err
 	}
 
-	_, err = io.Copy(hashesFile, resp.Body)
-	if err != nil {
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, resp.Body); err != nil {
 		return "", err
 	}
-	return hashesFilePath, nil
+	return buf.String(), nil
+
+	// _, err = io.Copy(hashesFile, resp.Body)
+	// if err != nil {
+	// 	return "", err
+	// }
+	// return hashesFilePath, nil
 }
 
-func (d *Download) getHashedZips(hashesFilePath string) error {
-	d.hzips = make(hashedZips, 0)
-	hf, err := os.Open(hashesFilePath)
-	if err != nil {
-		return err
-	}
-	defer hf.Close()
+func (d *Download) GetHashedZips(hashes string) error {
+	//d.hzips = make(hashedZips, 0)
+	//hf, err := os.Open(hashesFilePath)
+	//if err != nil {
+	//	return err
+	//}
+	//defer hf.Close()
 
-	scanner := bufio.NewScanner(hf)
+	scanner := bufio.NewScanner(strings.NewReader(hashes))
 
 	gatheringHashes := false
 	for scanner.Scan() {
@@ -319,9 +329,9 @@ func (d *Download) getHashedZips(hashesFilePath string) error {
 				return fmt.Errorf("got %d tokens, expected 2", len(tkns))
 			}
 			d.hzips = append(d.hzips, hashedZip{
-				hash: tkns[0],
-				zip:  tkns[1],
-				dir:  getDirFromZip(tkns[1]),
+				Hash: tkns[0],
+				Zip:  tkns[1],
+				Dir:  getDirFromZip(tkns[1]),
 			})
 		}
 	}
@@ -345,12 +355,12 @@ func getDirFromZip(zipTkn string) string {
 	return zipTkn[:lastIndex]
 }
 
-func (d *Download) checkHashedZips() error {
+func (d *Download) CheckHashedZips() error {
 	for i := range d.hzips {
 		d.hzips[i].valid = true
-		tkns := strings.Split(d.hzips[i].zip, Dash)
+		tkns := strings.Split(d.hzips[i].Zip, Dash)
 		if len(tkns) > 4 || len(tkns) < 3 {
-			return fmt.Errorf("checking %s got %d tokens from %s, expected 3 or 4", d.hzips[i].zip, len(tkns), Dash)
+			return fmt.Errorf("checking %s got %d tokens from %s, expected 3 or 4", d.hzips[i].Zip, len(tkns), Dash)
 		}
 		if tkns[0] != "monero" { // all files start with monero-*
 			d.hzips[i].valid = false
@@ -370,19 +380,19 @@ func (d *Download) checkHashedZips() error {
 			return fmt.Errorf("incorrect number of tokens %d, expected 4", len(tkns))
 		}
 
-		d.hzips[i].os = tkns[1]
-		d.hzips[i].arch = tkns[2]
+		d.hzips[i].Os = tkns[1]
+		d.hzips[i].Arch = tkns[2]
 
 		verExtTkns := strings.Split(tkns[3], Dot)
 		if len(verExtTkns) < 5 || len(verExtTkns) > 6 {
-			return fmt.Errorf("checking %s got %d version/extension tokens, expected 5 or 6", d.hzips[i].zip, len(verExtTkns))
+			return fmt.Errorf("checking %s got %d version/extension tokens, expected 5 or 6", d.hzips[i].Zip, len(verExtTkns))
 		}
 
 		verTkns := strings.SplitN(tkns[3], Dot, 5)
 		if len(verTkns) != 5 {
-			return fmt.Errorf("checking %s got %d version+ tokens, expected 5", d.hzips[i].zip, len(verTkns))
+			return fmt.Errorf("checking %s got %d version+ tokens, expected 5", d.hzips[i].Zip, len(verTkns))
 		}
-		d.hzips[i].ext = verTkns[4]
+		d.hzips[i].Ext = verTkns[4]
 
 		mv, err := newMoneroVersionFromParts(verTkns[0], verTkns[1], verTkns[2], verTkns[3])
 		if err != nil {
@@ -404,13 +414,13 @@ func (d *Download) chooseHashedZip() error {
 			continue
 		}
 		// similar os's
-		if !(d.machine.os == zip.os) &&
-			!(d.machine.os == "darwin" && zip.os == "mac") && !(d.machine.os == "windows" && zip.os == "win") {
+		if !(d.machine.os == zip.Os) &&
+			!(d.machine.os == "darwin" && zip.Os == "mac") && !(d.machine.os == "windows" && zip.Os == "win") {
 			continue
 		}
 		// similar arch's
-		if !(d.machine.arch == zip.arch) &&
-			!(d.machine.arch == "amd64" && zip.arch == "x64") && !(d.machine.arch == "arm64" && zip.arch == "armv8") {
+		if !(d.machine.arch == zip.Arch) &&
+			!(d.machine.arch == "amd64" && zip.Arch == "x64") && !(d.machine.arch == "arm64" && zip.Arch == "armv8") {
 			continue
 		}
 		d.Log.Tracef("Chose zip for machine: %s %s", d.machine.os, d.machine.arch)
@@ -608,13 +618,13 @@ func (d *Download) downloadFile() (string, error) {
 	if hzip == nil {
 		return "", fmt.Errorf("no selected zip")
 	}
-	url := "https://" + filepath.Join(DownloadsBase, hzip.zip)
+	url := "https://" + filepath.Join(DownloadsBase, hzip.Zip)
 	toolsPath := d.getToolsTempPath()
 	err := os.MkdirAll(toolsPath, 0700)
 	if err != nil {
 		return "", err
 	}
-	filePath := filepath.Join(toolsPath, hzip.zip)
+	filePath := filepath.Join(toolsPath, hzip.Zip)
 	zipFile, err := os.Create(filePath)
 	if err != nil {
 		return "", err
@@ -657,8 +667,8 @@ func (d *Download) checkDownloadedFileHash(filePath string) error {
 	}
 	hash := hex.EncodeToString(sha.Sum(nil))
 
-	if hash != zip.hash {
-		return fmt.Errorf("bad hash %s - expected %s", hash, zip.hash)
+	if hash != zip.Hash {
+		return fmt.Errorf("bad hash %s - expected %s", hash, zip.Hash)
 	}
 	return nil
 }
@@ -669,7 +679,7 @@ func (d *Download) decompressDownloadedFile(filePath string) (string, bool, erro
 		return "", false, fmt.Errorf("no selected zip")
 	}
 	// decompress nix or windows compression
-	if zip.ext == "tar.bz2" {
+	if zip.Ext == "tar.bz2" {
 		return d.extractTarBz2(filePath)
 	}
 	return d.extractWinZip(filePath)
@@ -832,7 +842,7 @@ func (d *Download) copyNewFiles() (string, error) {
 		return "", fmt.Errorf("copy new files - cannot get selected zip")
 	}
 	// new
-	newDir := filepath.Join(d.getToolsBasePath(), zip.dir)
+	newDir := filepath.Join(d.getToolsBasePath(), zip.Dir)
 	err := os.MkdirAll(newDir, 0700)
 	if err != nil {
 		return "", fmt.Errorf("cannot make new dir on tools base path - %w", err)
@@ -846,7 +856,7 @@ func (d *Download) copyNewFiles() (string, error) {
 		newDirCliFile += ".exe"
 	}
 	// temp
-	tempDir := filepath.Join(d.getToolsTempPath(), zip.dir)
+	tempDir := filepath.Join(d.getToolsTempPath(), zip.Dir)
 	tempDirCliFile := filepath.Join(tempDir, "monero-wallet-cli")
 	if d.machine.os == "windows" {
 		tempDirCliFile += ".exe"
