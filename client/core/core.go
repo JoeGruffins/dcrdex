@@ -11176,7 +11176,7 @@ func (c *Core) checkEpochResolution(host string, mktID string) {
 		if t.epochIdx() == lastEpoch && t.status() == order.OrderStatusEpoch {
 			return
 		}
-		// Does this order have an in-flight cancel order that is not yet
+		// Does this order have an in-flight cancel order that is not yetG
 		// resolved?
 		t.mtx.RLock()
 		unresolvedCancel := t.cancel != nil && t.cancelEpochIdx() == lastEpoch && t.cancel.matches.taker == nil
@@ -11328,4 +11328,20 @@ func (c *Core) TradingLimits(host string) (userParcels, parcelLimit uint32, err 
 	}
 
 	return userParcels, parcelLimit, nil
+}
+
+type paymentMultisig struct {
+	sender        string
+	signerXpubs   []string
+	signCompleted map[string]bool
+	addrToVal     map[string]string
+	addrToTxMsg   map[string]string
+}
+
+func (c *Core) MakePaymentMultisig(cvs string) (string, error) {
+	return "", nil
+}
+
+func (c *Core) SignPaymentMultisig(cvs string) (string, error) {
+	return "", nil
 }
