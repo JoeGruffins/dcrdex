@@ -11338,10 +11338,14 @@ type paymentMultisig struct {
 	addrToTxMsg   map[string]string
 }
 
-func (c *Core) MakePaymentMultisig(cvs string) (string, error) {
+func (c *Core) PaymentMultisigPubkey(assetID uint32) (string, error) {
 	return "", nil
 }
 
-func (c *Core) SignPaymentMultisig(cvs string) (string, error) {
+func (c *Core) MakePaymentMultisig(cvs string) ([]byte, error) {
+	return "", nil
+}
+
+func (c *Core) SignPaymentMultisig(pmJson string) (string, error) {
 	return "", nil
 }
