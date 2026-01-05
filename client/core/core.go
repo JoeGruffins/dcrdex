@@ -11333,19 +11333,27 @@ func (c *Core) TradingLimits(host string) (userParcels, parcelLimit uint32, err 
 type paymentMultisig struct {
 	sender        string
 	signerXpubs   []string
-	signCompleted map[string]bool
-	addrToVal     map[string]string
+	signCompleted map[string]string
+	addrToVal     map[string]float64
 	addrToTxMsg   map[string]string
 }
 
-func (c *Core) PaymentMultisigPubkey(assetID uint32) (string, error) {
+func (c *Core) parsePaymentMultisigCVS(cvsFilePath string) (*paymentMultisig, error) {
+	return nil, nil
+}
+
+func (c *Core) PaymentMultisigPubkey(assetID uint32) ([]byte, error) {
 	return "", nil
 }
 
-func (c *Core) MakePaymentMultisig(cvs string) ([]byte, error) {
+func (c *Core) MakePaymentMultisig(cvsFilePath string, outputPath string) ([]byte, error) {
 	return "", nil
 }
 
-func (c *Core) SignPaymentMultisig(pmJson string) (string, error) {
+func (c *Core) makePaymentMultisig(cvsB []byte) ([]byte, error) {
+	return "", nil
+}
+
+func (c *Core) SignPaymentMultisig(pmJson string) ([]byte, error) {
 	return "", nil
 }
