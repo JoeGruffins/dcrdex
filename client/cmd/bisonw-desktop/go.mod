@@ -6,13 +6,13 @@ replace decred.org/dcrdex => ../../..
 
 require (
 	decred.org/dcrdex v0.6.3
-	fyne.io/systray v1.10.1-0.20230403195833-7dc3c09283d6
+	fyne.io/systray v1.12.0
 	github.com/bisoncraft/webview_go v0.1.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 )
 
 require (
-	filippo.io/edwards25519 v1.0.0 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -36,7 +36,7 @@ require (
 	github.com/decred/vspd/client/v4 v4.0.2 // indirect
 	github.com/decred/vspd/types/v3 v3.0.0 // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
-	github.com/dgraph-io/badger/v4 v4.9.0 // indirect
+	github.com/dgraph-io/badger/v4 v4.9.1 // indirect
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/emicklei/dot v1.6.2 // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/btcsuite/btcd v0.24.2-beta.rc1.0.20240625142744-cc26860b4026 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
@@ -92,8 +92,8 @@ require (
 	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.5 // indirect
 	github.com/btcsuite/btcwallet/wallet/txrules v1.2.2 // indirect
 	github.com/btcsuite/btcwallet/wallet/txsizes v1.2.5 // indirect
-	github.com/btcsuite/btcwallet/walletdb v1.4.4 // indirect
-	github.com/btcsuite/btcwallet/wtxmgr v1.5.4 // indirect
+	github.com/btcsuite/btcwallet/walletdb v1.5.1 // indirect
+	github.com/btcsuite/btcwallet/wtxmgr v1.5.6 // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8 // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
@@ -129,29 +129,29 @@ require (
 	github.com/decred/slog v1.2.0 // indirect
 	github.com/decred/vspd/types/v2 v2.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/ethereum/go-ethereum v1.16.7 // indirect
+	github.com/ethereum/go-ethereum v1.16.8 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gcash/bchd v0.19.0 // indirect
 	github.com/gcash/bchlog v0.0.0-20180913005452-b4f036f92fa6 // indirect
 	github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000 // indirect
 	github.com/gen2brain/beeep v0.0.0-20240112042604-c7bb2cd88fea
-	github.com/go-chi/chi/v5 v5.0.1 // indirect
+	github.com/go-chi/chi/v5 v5.2.5 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
-	github.com/huandu/skiplist v1.2.0 // indirect
-	github.com/jessevdk/go-flags v1.5.0 // indirect
+	github.com/huandu/skiplist v1.2.1 // indirect
+	github.com/jessevdk/go-flags v1.6.1 // indirect
 	github.com/jrick/bitset v1.0.0 // indirect
-	github.com/jrick/logrotate v1.0.0 // indirect
+	github.com/jrick/logrotate v1.1.2 // indirect
 	github.com/jrick/wsrpc/v2 v2.3.8 // indirect
 	github.com/kkdai/bstream v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
-	github.com/lib/pq v1.10.4 // indirect
+	github.com/lib/pq v1.11.1 // indirect
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf // indirect
 	github.com/lightninglabs/neutrino v0.16.1-0.20240814152458-81d6cd2d2da5 // indirect
 	github.com/lightninglabs/neutrino/cache v1.1.2 // indirect
@@ -172,20 +172,19 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
-	github.com/tevino/abool v1.2.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/zquestz/grab v0.0.0-20190224022517-abcee96e61b1 // indirect
-	go.etcd.io/bbolt v1.3.12 // indirect
+	go.etcd.io/bbolt v1.4.3 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
+	golang.org/x/exp v0.0.0-20250811191247-51f88131bc50 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
-	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
+	golang.org/x/time v0.14.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	lukechampine.com/blake3 v1.3.0 // indirect
+	lukechampine.com/blake3 v1.4.1 // indirect
 )
