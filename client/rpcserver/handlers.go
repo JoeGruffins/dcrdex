@@ -1550,6 +1550,15 @@ func RouteExists(route string) bool {
 	return ok
 }
 
+// Routes returns the names of all known RPC routes.
+func Routes() []string {
+	routes := make([]string, 0, len(routeInfos))
+	for r := range routeInfos {
+		routes = append(routes, r)
+	}
+	return routes
+}
+
 // Common field description constants.
 const (
 	descAppPass     = "The Bison Wallet password."

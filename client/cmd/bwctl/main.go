@@ -109,12 +109,15 @@ var optionalTextFiles = map[string]string{
 	"getdexconfig": "cert",
 }
 
+// noCertArg indicates that the cert field was not found in the route's params.
+const noCertArg = -1
+
 // certArgIndex computes the positional CLI arg index for a given JSON field
 // name by counting non-password fields in declaration order.
 func certArgIndex(route, fieldName string) int {
 	pt := rpcserver.ParamType(route)
 	if pt == nil {
-		return -1
+		return noCertArg
 	}
 	fields := rpcserver.ReflectFields(pt)
 	idx := 0
@@ -126,7 +129,7 @@ func certArgIndex(route, fieldName string) int {
 			idx++
 		}
 	}
-	return -1
+	return noCertArg
 }
 
 // promptPWs prompts for passwords on stdin and returns an error if prompting
@@ -171,7 +174,7 @@ func readTextFile(cmd string, args []string) error {
 	}
 	fileArgIndx := certArgIndex(cmd, fieldName)
 	// Not an error if file path arg is not provided for optional file args.
-	if fileArgIndx < 0 || len(args) < fileArgIndx+1 || args[fileArgIndx] == "" {
+	if fileArgIndx == noCertArg || len(args) < fileArgIndx+1 || args[fileArgIndx] == "" {
 		return nil
 	}
 	path := dex.CleanAndExpandPath(args[fileArgIndx])

@@ -171,6 +171,9 @@ func buildFromStruct(route string, pws []encode.PassBytes, args []string) (any, 
 
 // isEffectivelyOptional returns true for types whose zero value is a valid
 // "not provided" sentinel (maps, slices, interfaces).
+// NOTE: This means all interface{}/any fields are treated as optional. If a
+// required any-typed field is ever added, this should be revisited to use
+// struct tags (e.g. omitempty) instead of type-based inference.
 func isEffectivelyOptional(t reflect.Type) bool {
 	if t == nil {
 		return true
@@ -269,6 +272,8 @@ func setFieldFromString(fv reflect.Value, goType reflect.Type, s string) error {
 			return err
 		}
 		fv.Set(sp.Elem())
+	// NOTE: float32/float64 are not currently handled. Add a case here if a
+	// future params struct uses floating-point fields.
 	default:
 		return fmt.Errorf("unsupported field type %v", goType)
 	}
@@ -433,7 +438,7 @@ func parseInventory(args []string) (reflect.Value, int, error) {
 // parseBoolDefaultTrue parses an optional bool that defaults to true when
 // omitted.
 func parseBoolDefaultTrue(args []string) (reflect.Value, int, error) {
-	v := true
+	v := true // Escapes to heap; reflect.ValueOf(&v) intentionally captures its address.
 	if len(args) > 0 && args[0] != "" {
 		var err error
 		v, err = strconv.ParseBool(args[0])

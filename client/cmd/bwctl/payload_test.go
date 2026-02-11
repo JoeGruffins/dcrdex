@@ -770,13 +770,25 @@ func TestMultisigRoutes(t *testing.T) {
 }
 
 func TestAllRoutesHaveCorrectType(t *testing.T) {
+	// Routes with custom field parsers need hand-crafted args that the
+	// generic dummy-arg builder below can't synthesize.
+	customRoutes := map[string]bool{
+		"newwallet":          true, // config uses remaining args
+		"multitrade":         true, // placements JSON
+		"startmmbot":         true, // optional market filter
+		"stopmmbot":          true, // optional market filter
+		"updaterunningbotcfg": true, // market + optional inventory
+		"updaterunningbotinv": true, // market + required inventory
+		"postbond":           true, // maintainTier defaults true
+		"withdraw":           true, // postProcess sets subtract
+	}
+
 	// Verify that buildPayload returns the correct pointer type for every
-	// route that has a paramsType.
-	for _, route := range []string{
-		"help", "init", "login", "closewallet", "walletbalance", "walletstate",
-		"cancel", "orderbook", "stakestatus", "setvsp", "walletpeers",
-		"paymentmultisigpubkey", "bridge", "checkbridgeapproval",
-	} {
+	// route that has a paramsType, iterating dynamically over all routes.
+	for _, route := range rpcserver.Routes() {
+		if customRoutes[route] {
+			continue
+		}
 		pt := rpcserver.ParamType(route)
 		if pt == nil {
 			continue
@@ -819,6 +831,24 @@ func TestAllRoutesHaveCorrectType(t *testing.T) {
 		if gotType != wantType {
 			t.Fatalf("route %s: got type %v, want %v", route, gotType, wantType)
 		}
+	}
+}
+
+func TestWithdrawSubtractFieldExists(t *testing.T) {
+	// Verify that the withdraw postProcess can find the "subtract" field.
+	// This guards against silent no-ops if SendParams is renamed or
+	// restructured.
+	pt := rpcserver.ParamType("withdraw")
+	if pt == nil {
+		t.Fatal("expected non-nil param type for withdraw")
+	}
+	v := reflect.New(pt).Elem()
+	fv := fieldByJSONName(v, "subtract")
+	if !fv.IsValid() {
+		t.Fatal("fieldByJSONName failed to find 'subtract' on withdraw params — postProcess would silently do nothing")
+	}
+	if fv.Kind() != reflect.Bool {
+		t.Fatalf("expected bool kind for 'subtract', got %v", fv.Kind())
 	}
 }
 
