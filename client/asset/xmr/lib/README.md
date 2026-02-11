@@ -1,8 +1,7 @@
-# Pre-built monero_c Libraries
+# monero_c Libraries
 
-This directory contains pre-built `libwallet2_api_c` libraries for each
-supported platform. These are built using the Dockerfile in the parent
-directory.
+This directory holds `libwallet2_api_c` libraries for each supported platform.
+Libraries must be built using the Dockerfile in the parent directory (see below).
 
 ## Platforms
 
@@ -13,18 +12,9 @@ directory.
 | `darwin-amd64/` | macOS x86_64 | `libwallet2_api_c.dylib` |
 | `darwin-arm64/` | macOS ARM64 | `libwallet2_api_c.dylib` |
 
-## Verification
+## Building the Libraries
 
-Verify library integrity against the checksums:
-
-```bash
-cd client/asset/xmr/lib
-sha256sum -c SHA256SUMS
-```
-
-## Building New Libraries
-
-To rebuild the libraries (from `client/asset/xmr/`):
+From `client/asset/xmr/`:
 
 ```bash
 # Build the Docker image
@@ -38,10 +28,6 @@ docker run --rm monero_c_builder cat /monero_c/release/monero/x86_64-w64-mingw32
 docker run --rm monero_c_builder cat /monero_c/release/monero/x86_64-apple-darwin11_libwallet2_api_c.dylib.xz | xz -d > lib/darwin-amd64/libwallet2_api_c.dylib
 
 docker run --rm monero_c_builder cat /monero_c/release/monero/aarch64-apple-darwin11_libwallet2_api_c.dylib.xz | xz -d > lib/darwin-arm64/libwallet2_api_c.dylib
-
-# Generate checksums
-cd lib
-sha256sum */libwallet2_api_c.* > SHA256SUMS
 ```
 
 ## Runtime Requirements

@@ -256,7 +256,7 @@ func dexNetworkToCgo(net dex.Network) cxmr.NetworkType {
 		// Use Monero testnet instead of stagenet - stagenet has address
 		// validation bugs in monero_c.
 		// TODO: stagenet is supposedly more stable and meant for consumers
-		// like us so we shold switch to that whenever the library can
+		// like us so we should switch to that whenever the library can
 		// handle it. When testing validate address and send, which accepts
 		// an address both fail because of the address values.
 		return cxmr.NetworkTestnet
@@ -1208,8 +1208,8 @@ func birthdayToHeight(bday uint64, net dex.Network) uint64 {
 		// Mainnet genesis: April 18, 2014
 		genesisTime = 1397818193
 	case dex.Testnet:
-		// Stagenet (mapped to dex.Testnet): launched March 2018 with v0.12.0.0
-		genesisTime = 1520467200 // March 8, 2018
+		// Testnet launched alongside mainnet in April 2014.
+		genesisTime = 1397818193
 	case dex.Simnet:
 		// Simnet/regtest: local network, always scan from genesis
 		return 0

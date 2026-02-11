@@ -6,13 +6,14 @@ Monero's wallet2 library.
 
 ## Building dcrdex with XMR Support
 
-Pre-built `libwallet2_api_c` libraries are included in the `lib/` directory for
-all supported platforms. Building with XMR support requires only:
+The `libwallet2_api_c` shared library must be built before compiling with XMR
+support. See [Rebuilding the Libraries](#rebuilding-the-libraries) for
+instructions on building the library using the provided Dockerfile.
+
+Once the library is built and placed in `lib/<platform>/`, build with:
 
 - Go 1.21+
 - GCC/Clang (C/C++ compiler)
-
-Build with the `xmr` tag:
 
 ```bash
 go build -tags xmr ./client/cmd/bisonw
@@ -20,7 +21,7 @@ go build -tags xmr ./client/cmd/bisonw
 
 ### Runtime Setup
 
-The shared library must be available at runtime.
+The shared library must also be available at runtime.
 
 **Option 1: Copy next to executable (recommended for development)**
 
@@ -51,13 +52,6 @@ sudo cp client/asset/xmr/lib/linux-amd64/libwallet2_api_c.so /usr/lib/bisonw/
 The binary's rpath is configured to search both the executable's directory and
 `/usr/lib/bisonw`, so either location works without setting `LD_LIBRARY_PATH`.
 
-### Verifying Library Checksums
-
-```bash
-cd client/asset/xmr/lib
-sha256sum -c SHA256SUMS
-```
-
 ## Configuration
 
 When creating an XMR wallet in dcrdex, you'll need to provide:
@@ -71,12 +65,12 @@ When creating an XMR wallet in dcrdex, you'll need to provide:
 
 ### Default Values
 
-Default daemon addresses point to public nodes for mainnet/stagenet:
+Default daemon addresses point to public nodes for mainnet/testnet:
 
 | Network | Default Daemon | Default Wallet Name |
 |---------|----------------|---------------------|
 | Mainnet | `http://xmr-node.cakewallet.com:18081` | (required) |
-| Stagenet | `http://node.monerodevs.org:38089` | (required) |
+| Testnet | `http://127.0.0.1:28081` | (required) |
 | Simnet | `http://127.0.0.1:18081` | `xmrwallet` |
 
 For simnet, all settings have sensible defaults so you can run without configuration.
@@ -86,7 +80,6 @@ For simnet, all settings have sensible defaults so you can run without configura
 | Network | Default Port |
 |---------|--------------|
 | Mainnet | 18081 |
-| Stagenet | 38081 |
 | Testnet | 28081 |
 
 ## Wallet Seed Format
@@ -127,7 +120,7 @@ node.moneroworld.com:18089
 client/asset/xmr/
 ├── xmr.go      # Driver and Wallet implementation
 ├── stub.go     # Stub when xmr tag not set
-├── cgo/
+├── cxmr/
 │   ├── wallet.go   # CGO bindings to monero_c
 │   └── doc.go      # Package documentation
 └── lib/
@@ -135,7 +128,7 @@ client/asset/xmr/
     ├── darwin-amd64/   # macOS x86_64 library
     ├── darwin-arm64/   # macOS ARM64 library
     ├── windows-amd64/  # Windows x86_64 library
-    └── SHA256SUMS      # Library checksums
+    └── .gitkeep        # Directory placeholders
 ```
 
 The cgo package wraps approximately 30 functions from monero_c's wallet2_api_c.h,
@@ -175,7 +168,7 @@ calls, so they do not linger in Go's garbage-collected heap.
 
 Key material is never logged or transmitted. The secret spend key and secret
 view key can be retrieved through the CGO bindings (`SecretSpendKey`,
-`SecretViewKey` in `cgo/wallet.go`) but are only used internally.
+`SecretViewKey` in `cxmr/wallet.go`) but are only used internally.
 
 ### Transaction-Level Protections
 
@@ -310,9 +303,6 @@ docker run --rm monero_c_builder cat /monero_c/release/monero/x86_64-w64-mingw32
 docker run --rm monero_c_builder cat /monero_c/release/monero/x86_64-apple-darwin11_libwallet2_api_c.dylib.xz | xz -d > lib/darwin-amd64/libwallet2_api_c.dylib
 
 docker run --rm monero_c_builder cat /monero_c/release/monero/aarch64-apple-darwin11_libwallet2_api_c.dylib.xz | xz -d > lib/darwin-arm64/libwallet2_api_c.dylib
-
-# Update checksums
-cd lib && sha256sum */libwallet2_api_c.* > SHA256SUMS
 ```
 
 **Supported targets:**
