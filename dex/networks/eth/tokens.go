@@ -224,25 +224,17 @@ var Tokens = map[uint32]*Token{
 						}},
 					1: {
 						Gas: Gases{
-							// First swap used 88089 gas Recommended Gases.Swap = 114515
-							Swap: 114_515,
-							// 	4 additional swaps averaged 26671 gas each. Recommended Gases.SwapAdd = 34672
-							// 	[88089 114763 141438 168100 194775]
-							SwapAdd: 34_672,
-							// First redeem used 44825 gas. Recommended Gases.Redeem = 58272
-							Redeem: 58_272,
-							// 	4 additional redeems averaged 10929 gas each. recommended Gases.RedeemAdd = 14207
-							// 	[44825 55765 66682 77611 88541]
+							// Previous simnet estimates were incorrectly measured
+							// against ETH swaps (token=address(0)) instead of actual
+							// ERC20 token swaps. Values below are based on testnet
+							// measurements which use the real token transfer path.
+							Swap:      127_803,
+							SwapAdd:   34_672,
+							Redeem:    71_073,
 							RedeemAdd: 14_207,
-							// Average of 5 refunds: 47624. Recommended Gases.Refund = 61911
-							// 	[47624 47624 47624 47624 47624]
-							Refund: 61_911,
-							// Average of 2 approvals: 44754. Recommended Gases.Approve = 58180
-							// 	[44754 44754]
-							Approve: 58_180,
-							// Average of 1 transfers: 51509. Recommended Gases.Transfer = 66961
-							// 	[51509]
-							Transfer: 66_961,
+							Refund:    75_472,
+							Approve:   72_520,
+							Transfer:  80_775,
 						},
 					},
 				},
@@ -389,10 +381,20 @@ var Tokens = map[uint32]*Token{
 							Approve:   32_303,
 							Transfer:  66_953,
 						}},
-					1: {},
+					1: {
+						// Based on testnet measurements.
+						Gas: Gases{
+							Swap:      123_955,
+							SwapAdd:   34_451,
+							Redeem:    72_237,
+							RedeemAdd: 13_928,
+							Refund:    76_635,
+							Approve:   63_609,
+							Transfer:  82_180,
+						},
+					},
 				},
 			},
-			// No USDC version 1 gases on simnet, for testing purposes.
 		},
 	},
 	maticTokenID: {

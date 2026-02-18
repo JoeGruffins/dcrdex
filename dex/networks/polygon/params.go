@@ -256,14 +256,17 @@ var (
 						},
 					},
 					1: {
+						// Previous simnet estimates were incorrectly measured
+						// against base asset swaps instead of actual ERC20 token
+						// swaps. Values below are based on testnet measurements.
 						Gas: dexeth.Gases{
-							Swap:      114_515,
+							Swap:      127_818,
 							SwapAdd:   34_672,
-							Redeem:    58_272,
+							Redeem:    71_089,
 							RedeemAdd: 14_207,
-							Refund:    61_911,
-							Approve:   58_180,
-							Transfer:  66_961,
+							Refund:    75_016,
+							Approve:   72_520,
+							Transfer:  80_775,
 						},
 					},
 				},
