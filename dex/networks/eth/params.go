@@ -78,7 +78,7 @@ var (
 		},
 		1: {
 			dex.Mainnet: common.HexToAddress("0xa958d5B8a3a29E3f5f41742Fbb939A0dd93EB418"), // tx 0x4adf0314237c454acee1f8d33e97f84126af612245cad0794471693f0906610e
-			dex.Testnet: common.HexToAddress("0xaa3084e2a99e3548b9111280794711771a803c5e"), // tx 0x56714e5a4dea2b20a3b517023168a3ffd81d183368d99bf976dc1cb0bf673095
+			dex.Testnet: common.HexToAddress("0xA70055386aD35190D39d7f3d6B1EceBa7690c59D"), // tx 0x178af6205fe07274ddc543099f0e3de9844ef1cb76755a8b6e9a54f14049ba0c
 			dex.Simnet:  common.HexToAddress(""),
 		},
 	}

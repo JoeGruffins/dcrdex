@@ -68,7 +68,7 @@ var (
 			dex.Simnet: common.HexToAddress(""), // Filled in by MaybeReadSimnetAddrs
 		},
 		1: {
-			dex.Testnet: common.HexToAddress("0x4F8024dd716E4ec9AC8E0CD971616F73e3f6625d"), // txid: https://base-sepolia.blockscout.com/tx/0xa8137a8f84b28149f27045a4d6c15cceb784f3886f8a476790002e4da4728979
+			dex.Testnet: common.HexToAddress("0xbeA9D54f2bD1F54e9130D17d834C1172eD314A39"), // txid: 0x89fdba013c832fced6cbac89b1057a400f4eb955bf174d102fba3517e78dbbbf
 			dex.Mainnet: common.HexToAddress(""),
 			dex.Simnet:  common.HexToAddress(""), // Filled in by MaybeReadSimnetAddrs
 		},

@@ -89,7 +89,7 @@ var (
 		},
 		1: {
 			dex.Mainnet: common.HexToAddress("0xcb9B5AD64FD3fc20215f744293d95887c888B8a5"), // txid: 0x35e5318f3b91b9890a59b0907c6fe9603cc46651111ee18e4df142c7a39cdc10
-			dex.Testnet: common.HexToAddress("0x47f50Aea57221F591aCdD5C61EcBCc4250F15937"), // txid: 0xf582a60ff370f24e5c2836feeddbf586635282dd7d4e5e972d3d8ca503b47e0e
+			dex.Testnet: common.HexToAddress("0x6f338bF2D3DA244A464352AD13F1F01c4C1a47dC"), // txid: 0xcb9bbfae0825749e3da2ac9fa53497b17aedfa2276e6952618a02640de1d02d9
 			dex.Simnet:  common.HexToAddress(""),                                           // Filled in by MaybeReadSimnetAddrs
 		},
 	}
