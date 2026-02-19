@@ -121,6 +121,11 @@ func usage(route string, err error) *msgjson.ResponsePayload {
 	return createResponse(route, nil, resErr)
 }
 
+// devRoutes is the set of routes that require the --dev flag.
+var devRoutes = map[string]bool{
+	deployContractRoute: true,
+}
+
 // routes maps routes to a handler function.
 var routes = map[string]func(s *RPCServer, msg *msgjson.Message) *msgjson.ResponsePayload{
 	cancelRoute:                handleCancel,
@@ -194,7 +199,7 @@ var routes = map[string]func(s *RPCServer, msg *msgjson.Message) *msgjson.Respon
 // handleHelp handles requests for help. Returns general help for all commands
 // if no arguments are passed or verbose help if the passed argument is a known
 // command.
-func handleHelp(_ *RPCServer, msg *msgjson.Message) *msgjson.ResponsePayload {
+func handleHelp(s *RPCServer, msg *msgjson.Message) *msgjson.ResponsePayload {
 	var params HelpParams
 	if err := msg.Unmarshal(&params); err != nil {
 		return usage(helpRoute, err)
@@ -202,8 +207,12 @@ func handleHelp(_ *RPCServer, msg *msgjson.Message) *msgjson.ResponsePayload {
 	res := ""
 	if params.HelpWith == "" {
 		// List all commands if no arguments.
-		res = ListCommands(params.IncludePasswords)
+		res = ListCommands(params.IncludePasswords, s.dev)
 	} else {
+		if devRoutes[params.HelpWith] && !s.dev {
+			resErr := msgjson.NewError(msgjson.RPCUnknownRoute, "error getting usage: %v", fmt.Errorf("%w: %s", errUnknownCmd, params.HelpWith))
+			return createResponse(helpRoute, nil, resErr)
+		}
 		var err error
 		res, err = commandUsage(params.HelpWith, params.IncludePasswords)
 		if err != nil {
@@ -2575,9 +2584,12 @@ func reflectFields(t reflect.Type, descs map[string]string) []fieldInfo {
 
 // ListCommands prints a short usage string for every route available to the
 // rpcserver.
-func ListCommands(includePasswords bool) string {
+func ListCommands(includePasswords, dev bool) string {
 	var sb strings.Builder
 	for _, r := range sortRouteInfoKeys() {
+		if devRoutes[r] && !dev {
+			continue
+		}
 		info := routeInfos[r]
 		fields := reflectFields(info.paramsType, info.fieldDescs)
 		var parts []string
