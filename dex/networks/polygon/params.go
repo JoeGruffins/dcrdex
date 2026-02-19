@@ -50,30 +50,35 @@ var (
 	}
 
 	v1Gases = &dexeth.Gases{
-		// First swap used 48801 gas Recommended Gases.Swap = 63441
-		Swap: 63_441,
-		// 	4 additional swaps averaged 26695 gas each. Recommended Gases.SwapAdd = 34703
-		// 	[48801 75511 102209 128895 155582]
-		SwapAdd: 34_703,
-		// First redeem used 40032 gas. Recommended Gases.Redeem = 52041
-		Redeem: 52_041,
-		// 	4 additional redeems averaged 10950 gas each. recommended Gases.RedeemAdd = 14235
-		// 	[40032 50996 61949 72890 83832]
-		RedeemAdd: 14_235,
-		// *** Compare expected Swap + Redeem = 88k with UniSwap v2: 102k, v3: 127k
-		// *** A 1-match order is cheaper than UniSwap.
-		// Average of 5 refunds: 40390. Recommended Gases.Refund = 52507
-		// 	[40381 40393 40393 40393 40393]
-		Refund: 52_507,
+		// First swap used 54296 gas Recommended Gases.Swap = 70584
+		Swap: 70_584,
+		// 4 additional swaps averaged 29710 gas each. Recommended Gases.SwapAdd = 38621
+		// [54296 84005 113714 143412 173135]
+		SwapAdd: 38_621,
+		// First redeem used 44911 gas. Recommended Gases.Redeem = 58384
+		Redeem: 58_384,
+		// 4 additional redeems averaged 13342 gas each. Recommended Gases.RedeemAdd = 17343
+		// [44911 58254 71598 84919 98278]
+		RedeemAdd: 17_343,
+		// Average of 6 refunds: 47075. Recommended Gases.Refund = 61196
+		// [47920 47920 47920 47908 47920 42859]
+		Refund: 61_196,
 
-		GaslessRedeemVerification:       83_000,
-		GaslessRedeemVerificationAdd:    11_000,
-		GaslessRedeemPreVerification:    70_000,
-		GaslessRedeemPreVerificationAdd: 6_000,
-		GaslessRedeemCall:               120_000,
-		// Must be >= MIN_CALL_GAS_PER_REDEMPTION in the contract's
-		// validateUserOp, otherwise batch redemptions will be rejected.
-		GaslessRedeemCallAdd: 25_000,
+		// Gasless redeem (testnet, v0.7 EntryPoint):
+		// Verification (n=1..5): [83000 94000 105000 116000 127000]
+		GaslessRedeemVerification: 107_900,
+		// VerificationAdd: avg diff = 11000. Recommended = 14300
+		GaslessRedeemVerificationAdd: 14_300,
+		// PreVerification (n=1..5): [70000 76000 82000 88000 94000]
+		GaslessRedeemPreVerification: 91_000,
+		// PreVerificationAdd: avg diff = 6000. Recommended = 7800
+		GaslessRedeemPreVerificationAdd: 7_800,
+		// Call gas uses the contract's hard minimums from validateUserOp.
+		// The EntryPoint passes callGasLimit directly to the inner call
+		// (Exec.call), so the full amount is available to redeemAA.
+		// Raw bundler estimates (n=1..5): [120000 145000 170000 195000 220000]
+		GaslessRedeemCall:    100_000, // MIN_CALL_GAS_BASE (75k) + MIN_CALL_GAS_PER_REDEMPTION (25k)
+		GaslessRedeemCallAdd: 25_000,  // MIN_CALL_GAS_PER_REDEMPTION
 	}
 
 	VersionedGases = map[uint32]*dexeth.Gases{
@@ -88,8 +93,8 @@ var (
 			dex.Simnet:  common.HexToAddress(""),                                           // Filled in by MaybeReadSimnetAddrs
 		},
 		1: {
-			dex.Mainnet: common.HexToAddress("0xcb9B5AD64FD3fc20215f744293d95887c888B8a5"), // txid: 0x35e5318f3b91b9890a59b0907c6fe9603cc46651111ee18e4df142c7a39cdc10
-			dex.Testnet: common.HexToAddress("0x47f50Aea57221F591aCdD5C61EcBCc4250F15937"), // txid: 0xf582a60ff370f24e5c2836feeddbf586635282dd7d4e5e972d3d8ca503b47e0e
+			dex.Mainnet: common.HexToAddress("0xeb88905501f4148Eed241fC75287035674403109"), // txid: 0x07fa8565d1f8916695cba7488fcaad778286d4a0a14a9406608f5838e4c3b6f7
+			dex.Testnet: common.HexToAddress("0x6f338bF2D3DA244A464352AD13F1F01c4C1a47dC"), // txid: 0xcb9bbfae0825749e3da2ac9fa53497b17aedfa2276e6952618a02640de1d02d9
 			dex.Simnet:  common.HexToAddress(""),                                           // Filled in by MaybeReadSimnetAddrs
 		},
 	}
@@ -163,23 +168,11 @@ var (
 					},
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 98322 gas Recommended Gases.Swap = 127818
-							// 	1 additional swaps averaged 26503 gas each. Recommended Gases.SwapAdd = 34453
-							// 	[98322 124825]
-							// First redeem used 54684 gas. Recommended Gases.Redeem = 71089
-							// 	1 additional redeems averaged 10722 gas each. recommended Gases.RedeemAdd = 13938
-							// 	[54684 65406]
-							// Average of 2 refunds: 60205. Recommended Gases.Refund = 78266
-							// 	[60205 60205]
-							// Average of 2 approvals: 55785. Recommended Gases.Approve = 72520
-							// 	[55785 55785]
-							// Average of 1 transfers: 62135. Recommended Gases.Transfer = 80775
-							// 	[62135]
-							Swap:      127_818,
-							SwapAdd:   34_453,
-							Redeem:    71_089,
-							RedeemAdd: 13_938,
-							Refund:    78_266,
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
 							Approve:   72_520,
 							Transfer:  80_775,
 						},
@@ -217,23 +210,11 @@ var (
 					},
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 98322 gas Recommended Gases.Swap = 127818
-							// 	2 additional swaps averaged 26495 gas each. Recommended Gases.SwapAdd = 34443
-							// 	[98322 124825 151313]
-							// First redeem used 54684 gas. Recommended Gases.Redeem = 71089
-							// 	2 additional redeems averaged 10708 gas each. recommended Gases.RedeemAdd = 13920
-							// 	[54684 65406 76100]
-							// Average of 3 refunds: 57705. Recommended Gases.Refund = 75016
-							// 	[57705 57705 57705]
-							// Average of 2 approvals: 55785. Recommended Gases.Approve = 72520
-							// 	[55785 55785]
-							// Average of 1 transfers: 62135. Recommended Gases.Transfer = 80775
-							// 	[62135]
-							Swap:      127_818,
-							SwapAdd:   34_443,
-							Redeem:    71_089,
-							RedeemAdd: 13_920,
-							Refund:    75_016,
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
 							Approve:   72_520,
 							Transfer:  80_775,
 						},
@@ -317,25 +298,13 @@ var (
 					},
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 95187 gas Recommended Gases.Swap = 123743
-							// 	1 additional swaps averaged 26503 gas each. Recommended Gases.SwapAdd = 34453
-							// 	[95187 121690]
-							// First redeem used 49819 gas. Recommended Gases.Redeem = 64764
-							// 	1 additional redeems averaged 10722 gas each. recommended Gases.RedeemAdd = 13938
-							// 	[49819 60541]
-							// Average of 2 refunds: 62502. Recommended Gases.Refund = 81252
-							// 	[62502 62502]
-							// Average of 2 approvals: 52072. Recommended Gases.Approve = 67693
-							// 	[52072 52072]
-							// Average of 1 transfers: 57270. Recommended Gases.Transfer = 74451
-							// 	[57270]
-							Swap:      123_743,
-							SwapAdd:   34_453,
-							Redeem:    72_237, // using eth testnet value which is higher
-							RedeemAdd: 13_928,
-							Refund:    81_252,
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
 							Approve:   67_693,
-							Transfer:  82_180, // using eth testnet value which is higher
+							Transfer:  74_451,
 						},
 					},
 				},
@@ -357,25 +326,13 @@ var (
 					},
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 95187 gas Recommended Gases.Swap = 123743
-							// 	1 additional swaps averaged 26503 gas each. Recommended Gases.SwapAdd = 34453
-							// 	[95187 121690]
-							// First redeem used 49819 gas. Recommended Gases.Redeem = 64764
-							// 	1 additional redeems averaged 10722 gas each. recommended Gases.RedeemAdd = 13938
-							// 	[49819 60541]
-							// Average of 2 refunds: 62502. Recommended Gases.Refund = 81252
-							// 	[62502 62502]
-							// Average of 2 approvals: 52072. Recommended Gases.Approve = 67693
-							// 	[52072 52072]
-							// Average of 1 transfers: 57270. Recommended Gases.Transfer = 74451
-							// 	[57270]
-							Swap:      123_743,
-							SwapAdd:   34_453,
-							Redeem:    72_237, // using eth testnet value which is higher
-							RedeemAdd: 13_928,
-							Refund:    81_252,
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
 							Approve:   67_693,
-							Transfer:  82_180, // using eth testnet value which is higher
+							Transfer:  74_451,
 						},
 					},
 				},
@@ -440,25 +397,13 @@ var (
 					},
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 89867 gas Recommended Gases.Swap = 116827
-							// 	1 additional swaps averaged 26527 gas each. Recommended Gases.SwapAdd = 34485
-							// 	[89867 116394]
-							// First redeem used 44483 gas. Recommended Gases.Redeem = 57827
-							// 	1 additional redeems averaged 10746 gas each. recommended Gases.RedeemAdd = 13969
-							// 	[44483 55229]
-							// Average of 2 refunds: 49766. Recommended Gases.Refund = 64695
-							// 	[49766 49766]
-							// Average of 2 approvals: 46712. Recommended Gases.Approve = 60725
-							// 	[46712 46712]
-							// Average of 1 transfers: 51910. Recommended Gases.Transfer = 67483
-							// 	[51910]
-							Swap:      116_827,
-							SwapAdd:   34_485,
-							Redeem:    57_827,
-							RedeemAdd: 13_969,
-							Refund:    64_695,
-							Approve:   60_725,
-							Transfer:  67_483,
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
+							Approve:   49_428,
+							Transfer:  67_233,
 						},
 					},
 				},
@@ -468,25 +413,19 @@ var (
 				SwapContracts: map[uint32]*dexeth.SwapContract{
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 89867 gas Recommended Gases.Swap = 116827
-							// 	1 additional swaps averaged 26527 gas each. Recommended Gases.SwapAdd = 34485
-							// 	[89867 116394]
-							// First redeem used 44483 gas. Recommended Gases.Redeem = 57827
-							// 	1 additional redeems averaged 10746 gas each. recommended Gases.RedeemAdd = 13969
-							// 	[44483 55229]
-							// Average of 2 refunds: 49766. Recommended Gases.Refund = 64695
-							// 	[49766 49766]
-							// Average of 2 approvals: 46712. Recommended Gases.Approve = 60725
-							// 	[46712 46712]
-							// Average of 1 transfers: 51910. Recommended Gases.Transfer = 67483
-							// 	[51910]
-							Swap:      116_827,
-							SwapAdd:   34_485,
-							Redeem:    57_827,
-							RedeemAdd: 13_969,
-							Refund:    64_695,
-							Approve:   60_725,
-							Transfer:  67_483,
+							// Testnet measurements (Amoy, 2026-02-20):
+							// Swaps (n=1..5):   [95221 124929 154627 184349 214060]
+							// Redeems (n=1..5): [49488 62819 76151 89521 102867]
+							// Refunds (n=1..6): [57666 57430 57430 57430 57430 47421]
+							// Approvals: [46572 29472]
+							// Transfers: [51718]
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
+							Approve:   49_428,
+							Transfer:  67_233,
 						},
 					},
 				},
@@ -554,23 +493,11 @@ var (
 					},
 					1: {
 						Gas: dexeth.Gases{
-							// First swap used 95187 gas Recommended Gases.Swap = 123743
-							// 	1 additional swaps averaged 26503 gas each. Recommended Gases.SwapAdd = 34453
-							// 	[95187 121690]
-							// First redeem used 49819 gas. Recommended Gases.Redeem = 64764
-							// 	1 additional redeems averaged 10722 gas each. recommended Gases.RedeemAdd = 13938
-							// 	[49819 60541]
-							// Average of 2 refunds: 62502. Recommended Gases.Refund = 81252
-							// 	[62502 62502]
-							// Average of 2 approvals: 52072. Recommended Gases.Approve = 67693
-							// 	[52072 52072]
-							// Average of 1 transfers: 57270. Recommended Gases.Transfer = 74451
-							// 	[57270]
-							Swap:      123_743,
-							SwapAdd:   34_453,
-							Redeem:    64_764,
-							RedeemAdd: 13_938,
-							Refund:    81_252,
+							Swap:      123_787,
+							SwapAdd:   38_621,
+							Redeem:    64_334,
+							RedeemAdd: 17_347,
+							Refund:    72_541,
 							Approve:   67_693,
 							Transfer:  74_451,
 						},

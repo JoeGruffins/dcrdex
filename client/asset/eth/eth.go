@@ -3603,6 +3603,13 @@ func (w *TokenWallet) Swap(ctx context.Context, swaps *asset.Swaps) ([]asset.Rec
 
 const dummyUserOpSignature = "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c"
 
+// Contract minimums from ETHSwapV1.sol validateUserOp. The call gas limit
+// must be at least this value or the UserOp is rejected.
+const (
+	minCallGasBase          = 75_000 // MIN_CALL_GAS_BASE
+	minCallGasPerRedemption = 25_000 // MIN_CALL_GAS_PER_REDEMPTION
+)
+
 // precalculatedGaslessRedeemGasEstimates returns estimates for the gas limits
 // of a user op that redeems a number of swaps. This estimate is based on
 // pre-calculated values.
@@ -3610,6 +3617,12 @@ func precalculatedGaslessRedeemGasEstimates(numRedemptions uint64, gases *dexeth
 	verification := gases.GaslessRedeemVerification + gases.GaslessRedeemVerificationAdd*(numRedemptions-1)
 	preVerification := gases.GaslessRedeemPreVerification + gases.GaslessRedeemPreVerificationAdd*(numRedemptions-1)
 	call := gases.GaslessRedeemCall + gases.GaslessRedeemCallAdd*(numRedemptions-1)
+
+	// Enforce the contract's hard minimum so validateUserOp won't reject
+	// the UserOp even if the gas table values are too low.
+	if minCall := minCallGasBase + minCallGasPerRedemption*numRedemptions; call < minCall {
+		call = minCall
+	}
 
 	return &estimateBundlerGasResult{
 		VerificationGasLimit: hexutil.EncodeBig(big.NewInt(int64(verification))),
