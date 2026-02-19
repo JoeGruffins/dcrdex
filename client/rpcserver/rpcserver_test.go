@@ -100,6 +100,9 @@ func (c *TCore) CreateWallet(appPW, walletPW []byte, form *core.WalletForm) erro
 	c.newWalletForm = form
 	return c.createWalletErr
 }
+func (c *TCore) ReconfigureWallet(appPW, newWalletPW []byte, form *core.WalletForm) error {
+	return c.createWalletErr
+}
 func (c *TCore) CloseWallet(assetID uint32) error {
 	return c.closeWalletErr
 }
