@@ -5770,6 +5770,91 @@ func (c *Core) DeployContract(appPW []byte, assetIDs []uint32, txData []byte) ([
 	return results, nil
 }
 
+// TestContractGas exercises all v1 swap contract functions on the specified
+// chains and tokens, measuring actual gas consumption.
+func (c *Core) TestContractGas(appPW []byte, assetIDs []uint32, tokenAssetIDs []uint32, maxSwaps int) ([]*ContractGasTestResult, error) {
+	_, err := c.encryptionKey(appPW)
+	if err != nil {
+		return nil, newError(authErr, "TestContractGas password error: %w", err)
+	}
+
+	// Group token asset IDs by their parent chain.
+	tokensByParent := make(map[uint32][]uint32)
+	for _, tokenID := range tokenAssetIDs {
+		ti := asset.TokenInfo(tokenID)
+		if ti == nil {
+			return nil, newError(assetSupportErr, "unknown token asset ID %d", tokenID)
+		}
+		tokensByParent[ti.ParentID] = append(tokensByParent[ti.ParentID], tokenID)
+	}
+
+	var results []*ContractGasTestResult
+	for _, assetID := range assetIDs {
+		wallet, err := c.connectedWallet(assetID)
+		if err != nil {
+			results = append(results, &ContractGasTestResult{
+				AssetID: assetID,
+				Symbol:  unbip(assetID),
+				Error:   err.Error(),
+			})
+			continue
+		}
+		tester, ok := wallet.Wallet.(asset.ContractGasTester)
+		if !ok {
+			results = append(results, &ContractGasTestResult{
+				AssetID: assetID,
+				Symbol:  unbip(assetID),
+				Error:   "wallet does not support contract gas testing",
+			})
+			continue
+		}
+		tokensForChain := tokensByParent[assetID]
+		gasResults, err := tester.TestContractGas(1, maxSwaps, tokensForChain)
+		if err != nil {
+			results = append(results, &ContractGasTestResult{
+				AssetID: assetID,
+				Symbol:  unbip(assetID),
+				Error:   err.Error(),
+			})
+			continue
+		}
+		for _, gr := range gasResults {
+			res := &ContractGasTestResult{
+				AssetID: gr.AssetID,
+				Symbol:  gr.Symbol,
+				TxIDs:   gr.TxIDs,
+				Gases: &GasReport{
+					Swap:                            gr.Swap,
+					SwapAdd:                         gr.SwapAdd,
+					Redeem:                          gr.Redeem,
+					RedeemAdd:                       gr.RedeemAdd,
+					Refund:                          gr.Refund,
+					Approve:                         gr.Approve,
+					Transfer:                        gr.Transfer,
+					GaslessRedeemVerification:       gr.GaslessRedeemVerification,
+					GaslessRedeemVerificationAdd:    gr.GaslessRedeemVerificationAdd,
+					GaslessRedeemPreVerification:    gr.GaslessRedeemPreVerification,
+					GaslessRedeemPreVerificationAdd: gr.GaslessRedeemPreVerificationAdd,
+					GaslessRedeemCall:               gr.GaslessRedeemCall,
+					GaslessRedeemCallAdd:            gr.GaslessRedeemCallAdd,
+				},
+				RawSwaps:                  gr.RawSwaps,
+				RawRedeems:                gr.RawRedeems,
+				RawRefunds:                gr.RawRefunds,
+				RawApprovals:              gr.RawApprovals,
+				RawTransfers:              gr.RawTransfers,
+				RawGaslessVerification:    gr.RawGaslessVerification,
+				RawGaslessPreVerification: gr.RawGaslessPreVerification,
+				RawGaslessCall:            gr.RawGaslessCall,
+				Summary:                   gr.Summary,
+				Error:                     gr.Error,
+			}
+			results = append(results, res)
+		}
+	}
+	return results, nil
+}
+
 // Bridge initiates a bridge.
 func (c *Core) Bridge(fromAssetID, toAssetID uint32, amt uint64, bridgeName string) (txID string, err error) {
 	// Connect and unlock the source wallet.

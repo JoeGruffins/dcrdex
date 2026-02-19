@@ -20,26 +20,27 @@ import (
 type WalletTrait uint64
 
 const (
-	WalletTraitRescanner        WalletTrait = 1 << iota // The Wallet is an asset.Rescanner.
-	WalletTraitNewAddresser                             // The Wallet can generate new addresses on demand with NewAddress.
-	WalletTraitLogFiler                                 // The Wallet allows for downloading of a log file.
-	WalletTraitFeeRater                                 // Wallet can provide a fee rate for non-critical transactions
-	WalletTraitAccelerator                              // This wallet can accelerate transactions using the CPFP technique
-	WalletTraitRecoverer                                // The wallet is an asset.Recoverer.
-	WalletTraitWithdrawer                               // The Wallet can withdraw a specific amount from an exchange wallet.
-	WalletTraitSweeper                                  // The Wallet can sweep all the funds, leaving no change.
-	WalletTraitRestorer                                 // The wallet is an asset.WalletRestorer
-	WalletTraitTxFeeEstimator                           // The wallet can estimate transaction fees.
-	WalletTraitPeerManager                              // The wallet can manage its peers.
-	WalletTraitAuthenticator                            // The wallet require authentication.
-	WalletTraitShielded                                 // DEPRECATED. Left for ordering
-	WalletTraitTokenApprover                            // The wallet is a TokenApprover
-	WalletTraitAccountLocker                            // The wallet must have enough balance for redemptions before a trade.
-	WalletTraitTicketBuyer                              // The wallet can participate in decred staking.
-	WalletTraitHistorian                                // This wallet can return its transaction history // DEPRECATED
-	WalletTraitFundsMixer                               // The wallet can mix funds.
-	WalletTraitDynamicSwapper                           // The wallet has dynamic fees.
-	WalletTraitContractDeployer                         // The wallet can deploy contracts.
+	WalletTraitRescanner         WalletTrait = 1 << iota // The Wallet is an asset.Rescanner.
+	WalletTraitNewAddresser                              // The Wallet can generate new addresses on demand with NewAddress.
+	WalletTraitLogFiler                                  // The Wallet allows for downloading of a log file.
+	WalletTraitFeeRater                                  // Wallet can provide a fee rate for non-critical transactions
+	WalletTraitAccelerator                               // This wallet can accelerate transactions using the CPFP technique
+	WalletTraitRecoverer                                 // The wallet is an asset.Recoverer.
+	WalletTraitWithdrawer                                // The Wallet can withdraw a specific amount from an exchange wallet.
+	WalletTraitSweeper                                   // The Wallet can sweep all the funds, leaving no change.
+	WalletTraitRestorer                                  // The wallet is an asset.WalletRestorer
+	WalletTraitTxFeeEstimator                            // The wallet can estimate transaction fees.
+	WalletTraitPeerManager                               // The wallet can manage its peers.
+	WalletTraitAuthenticator                             // The wallet require authentication.
+	WalletTraitShielded                                  // DEPRECATED. Left for ordering
+	WalletTraitTokenApprover                             // The wallet is a TokenApprover
+	WalletTraitAccountLocker                             // The wallet must have enough balance for redemptions before a trade.
+	WalletTraitTicketBuyer                               // The wallet can participate in decred staking.
+	WalletTraitHistorian                                 // This wallet can return its transaction history // DEPRECATED
+	WalletTraitFundsMixer                                // The wallet can mix funds.
+	WalletTraitDynamicSwapper                            // The wallet has dynamic fees.
+	WalletTraitContractDeployer                          // The wallet can deploy contracts.
+	WalletTraitContractGasTester                         // The wallet can test contract gas usage.
 )
 
 // IsRescanner tests if the WalletTrait has the WalletTraitRescanner bit set.
@@ -154,6 +155,13 @@ func (wt WalletTrait) IsContractDeployer() bool {
 	return wt&WalletTraitContractDeployer != 0
 }
 
+// IsContractGasTester tests if the WalletTrait has the
+// WalletTraitContractGasTester bit set, which indicates the wallet implements
+// the ContractGasTester interface.
+func (wt WalletTrait) IsContractGasTester() bool {
+	return wt&WalletTraitContractGasTester != 0
+}
+
 // DetermineWalletTraits returns the WalletTrait bitset for the provided Wallet.
 func DetermineWalletTraits(w Wallet) (t WalletTrait) {
 	if _, is := w.(Rescanner); is {
@@ -209,6 +217,9 @@ func DetermineWalletTraits(w Wallet) (t WalletTrait) {
 	}
 	if _, is := w.(ContractDeployer); is {
 		t |= WalletTraitContractDeployer
+	}
+	if _, is := w.(ContractGasTester); is {
+		t |= WalletTraitContractGasTester
 	}
 	return t
 }
@@ -965,6 +976,44 @@ type ContractDeployer interface {
 	// (complete bytecode including constructor args). Returns the expected
 	// contract address and the transaction ID.
 	DeployContract(txData []byte) (contractAddr, txID string, err error)
+}
+
+// GasTestResult holds the gas usage measurements from testing swap contract
+// functions.
+type GasTestResult struct {
+	AssetID      uint32
+	Symbol       string
+	TxIDs        []string
+	Swap         uint64
+	SwapAdd      uint64
+	Redeem       uint64
+	RedeemAdd    uint64
+	Refund       uint64
+	Approve      uint64 // zero for base chain
+	Transfer     uint64 // zero for base chain
+	RawSwaps     []uint64
+	RawRedeems   []uint64
+	RawRefunds   []uint64
+	RawApprovals []uint64
+	RawTransfers []uint64
+	// Gasless redeem bundler estimates.
+	GaslessRedeemVerification       uint64
+	GaslessRedeemVerificationAdd    uint64
+	GaslessRedeemPreVerification    uint64
+	GaslessRedeemPreVerificationAdd uint64
+	GaslessRedeemCall               uint64
+	GaslessRedeemCallAdd            uint64
+	RawGaslessVerification          []uint64
+	RawGaslessPreVerification       []uint64
+	RawGaslessCall                  []uint64
+	Summary                         string
+	Error                           string
+}
+
+// ContractGasTester is a wallet that can test swap contract gas usage by
+// exercising all contract functions and measuring actual gas consumption.
+type ContractGasTester interface {
+	TestContractGas(contractVer uint32, maxSwaps int, tokenAssetIDs []uint32) ([]*GasTestResult, error)
 }
 
 // Sweeper is a wallet that can clear the entire balance of the wallet/account

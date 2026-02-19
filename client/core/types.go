@@ -158,6 +158,43 @@ type BridgeFeesAndLimits struct {
 	HasLimits bool              `json:"hasLimits"`
 }
 
+// GasReport holds the recommended gas values computed from raw measurements.
+type GasReport struct {
+	Swap      uint64 `json:"swap"`
+	SwapAdd   uint64 `json:"swapAdd"`
+	Redeem    uint64 `json:"redeem"`
+	RedeemAdd uint64 `json:"redeemAdd"`
+	Refund    uint64 `json:"refund"`
+	Approve   uint64 `json:"approve,omitempty"`
+	Transfer  uint64 `json:"transfer,omitempty"`
+	// Gasless redeem (ERC-4337) — recommended values.
+	GaslessRedeemVerification       uint64 `json:"gaslessRedeemVerification,omitempty"`
+	GaslessRedeemVerificationAdd    uint64 `json:"gaslessRedeemVerificationAdd,omitempty"`
+	GaslessRedeemPreVerification    uint64 `json:"gaslessRedeemPreVerification,omitempty"`
+	GaslessRedeemPreVerificationAdd uint64 `json:"gaslessRedeemPreVerificationAdd,omitempty"`
+	GaslessRedeemCall               uint64 `json:"gaslessRedeemCall,omitempty"`
+	GaslessRedeemCallAdd            uint64 `json:"gaslessRedeemCallAdd,omitempty"`
+}
+
+// ContractGasTestResult is the per-asset result of a contract gas test.
+type ContractGasTestResult struct {
+	AssetID      uint32     `json:"assetID"`
+	Symbol       string     `json:"symbol"`
+	TxIDs        []string   `json:"txIDs"`
+	Gases        *GasReport `json:"gases"`
+	RawSwaps     []uint64   `json:"rawSwaps"`
+	RawRedeems   []uint64   `json:"rawRedeems"`
+	RawRefunds   []uint64   `json:"rawRefunds"`
+	RawApprovals []uint64   `json:"rawApprovals,omitempty"`
+	RawTransfers []uint64   `json:"rawTransfers,omitempty"`
+	// Gasless redeem bundler estimates (per batch size, n=1..maxSwaps).
+	RawGaslessVerification    []uint64 `json:"rawGaslessVerification,omitempty"`
+	RawGaslessPreVerification []uint64 `json:"rawGaslessPreVerification,omitempty"`
+	RawGaslessCall            []uint64 `json:"rawGaslessCall,omitempty"`
+	Summary                   string   `json:"summary"`
+	Error                     string   `json:"error,omitempty"`
+}
+
 // DeployContractResult is the per-chain result of a contract deployment.
 type DeployContractResult struct {
 	AssetID      uint32 `json:"assetID"`
