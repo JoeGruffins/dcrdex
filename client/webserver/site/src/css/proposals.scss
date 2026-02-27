@@ -72,16 +72,17 @@
 .filter-form {
   max-width: 500px;
 
-  & > div {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+  & > .filter-list-wrap {
+    padding: 16px 10px;
   }
 }
 
 .filter-list-wrap {
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  padding: 16px;
+  padding: 16px 10px;
+  margin-left: 1rem;
+  margin-right: 1rem;
 }
 
 .filter-list {
@@ -91,6 +92,11 @@
   overflow-y: auto;
   max-height: 50vh;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .filter-pill {
