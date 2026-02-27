@@ -14,6 +14,10 @@ export default class ProposalsPage extends BasePage {
     this.body = body
     const page = this.page = Doc.idDescendants(body)
     Doc.bind(page.goBackToWallets, 'click', () => app().loadPage('wallets'))
+    Doc.bind(page.filterIcon, 'click', () => {
+      if (Doc.isHidden(page.filterStrip)) Doc.show(page.filterStrip)
+      else Doc.hide(page.filterStrip)
+    })
     Doc.bind(page.searchProposals, 'click', () => {
       const query = page.proposalSearchInput.value || ''
       if (!query) return
