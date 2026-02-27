@@ -89,3 +89,14 @@ SHA-256 for atomic swap secrets. The `sha256` precompile costs roughly
 double what `keccak256` does (60 base + 12/word vs 30 + 6/word), but
 this is negligible relative to the storage operations in each
 transaction.
+
+## Test Swap Bundler Check Depends on 1 ETH Exceeding Gas Prefund
+
+The bundler compatibility check in `testBundlerCompatibility` submits a
+user operation that redeems the permanent test swap (value: 1 ether).
+During `validateUserOp`, the contract checks
+`missingAccountFunds > total` and returns `SIG_VALIDATION_FAILED` if
+the gas prefund exceeds the total redemption value. The check passes
+because 1 ETH exceeds any reasonable gas prefund. If gas costs ever
+approach 1 ETH, the compatibility check would start failing even though
+real trades with higher lot sizes would succeed.
