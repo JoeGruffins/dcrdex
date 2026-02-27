@@ -21,6 +21,7 @@ export default class ProposalsPage extends BasePage {
     Doc.applySelector(page.forms, '.form-closer').forEach(el => {
       Doc.bind(el, 'click', () => { this.closePopups() })
     })
+    Doc.bind(page.goBackToWallets, 'click', () => app().loadPage('wallets'))
     Doc.bind(page.filterIcon, 'click', () => {
       const activeStatus = page.filterForm.dataset.activestatus || 'all'
       Doc.applySelector(page.filterForm, '.voteStatus').forEach(el => {
