@@ -5,18 +5,32 @@ import {
   PageElement
 } from './registry'
 
+const animationLength = 300
+
 export default class ProposalsPage extends BasePage {
   body: HTMLElement
+  forms: PageElement[]
+  currentForm: PageElement
   page: Record<string, PageElement>
 
   constructor (body: HTMLElement) {
     super()
     this.body = body
     const page = this.page = Doc.idDescendants(body)
+    this.forms = Doc.applySelector(page.forms, ':scope > form')
+    Doc.applySelector(page.forms, '.form-closer').forEach(el => {
+      Doc.bind(el, 'click', () => { this.closePopups() })
+    })
     Doc.bind(page.goBackToWallets, 'click', () => app().loadPage('wallets'))
     Doc.bind(page.filterIcon, 'click', () => {
-      if (Doc.isHidden(page.filterStrip)) Doc.show(page.filterStrip)
-      else Doc.hide(page.filterStrip)
+      const activeStatus = page.filterForm.dataset.activestatus || 'all'
+      Doc.applySelector(page.filterForm, '.voteStatus').forEach(el => {
+        el.classList.remove('active-opt')
+        if (el.dataset.status === activeStatus) {
+          el.classList.add('active-opt')
+        }
+      })
+      this.showForm(page.filterForm)
     })
     Doc.bind(page.searchProposals, 'click', () => {
       const query = page.proposalSearchInput.value || ''
@@ -30,20 +44,13 @@ export default class ProposalsPage extends BasePage {
       page.proposalSearchInput.value = ''
       app().loadPage('proposals')
     })
-
-    // Inline filter pill strip.
-    const activeStatus = page.filterStrip.dataset.activestatus || 'all'
-    Doc.applySelector(page.filterStrip, '.voteStatus').forEach(el => {
-      if (el.dataset.status === activeStatus) {
-        el.classList.add('active-opt')
-      }
+    Doc.applySelector(page.filterForm, '.voteStatus').forEach(el => {
       Doc.bind(el, 'click', () => {
-        Doc.applySelector(page.filterStrip, '.voteStatus').forEach(btn => { btn.classList.remove('active-opt') })
+        Doc.applySelector(page.filterForm, '.voteStatus').forEach(btn => { btn.classList.remove('active-opt') })
         el.classList.add('active-opt')
         this.refreshWithFilter()
       })
     })
-
     Doc.applySelector(page.proposals, '.proposal').forEach(el => {
       Doc.bind(el, 'click', async () => await this.loadProposal(el.dataset.token || '', this.page.proposals))
     })
@@ -54,8 +61,25 @@ export default class ProposalsPage extends BasePage {
     })
   }
 
+  async showForm (form: HTMLElement) {
+    const page = this.page
+    this.currentForm = form
+    this.forms.forEach(form => Doc.hide(form))
+    form.style.right = '10000px'
+    Doc.show(page.forms, form)
+    const shift = (page.forms.offsetWidth + form.offsetWidth) / 2
+    await Doc.animate(animationLength, progress => {
+      form.style.right = `${(1 - progress) * shift}px`
+    }, 'easeOutHard')
+    form.style.right = '0'
+  }
+
+  closePopups () {
+    Doc.hide(this.page.forms)
+  }
+
   refreshWithFilter () {
-    const status = Doc.safeSelector(this.page.filterStrip, '.voteStatus.active-opt').dataset.status || ''
+    const status = Doc.safeSelector(this.page.filterForm, '.voteStatus.active-opt').dataset.status || ''
     const data: Record<string, string> = {}
     if (status && status !== 'all') {
       data.status = status
