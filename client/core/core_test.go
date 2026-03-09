@@ -12787,6 +12787,9 @@ func TestIsSwappableGatedOnCounterPartyAddr(t *testing.T) {
 				Proof: db.MatchProof{
 					Secret:     encode.RandomBytes(32),
 					SecretHash: encode.RandomBytes(32),
+					Auth: db.MatchAuth{
+						MatchStamp: uint64(time.Now().UnixMilli()),
+					},
 				},
 				// SwapAddr is set (we sent per-match addr) but
 				// CounterPartyAddr not yet received.
