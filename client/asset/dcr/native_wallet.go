@@ -183,15 +183,15 @@ func (w *NativeWallet) stopFundsMixer() error {
 	return nil
 }
 
-// Lock locks all the native wallet accounts. If the mixer is running it
-// will be stopped for the lock without changing the persisted mixing
-// preference, so mixing resumes on next unlock.
+// Lock locks all the native wallet accounts.
 func (w *NativeWallet) Lock() (err error) {
+	if w.mixing.Load() {
+		return fmt.Errorf("cannot lock wallet while mixing")
+	}
 	w.mixer.mtx.Lock()
 	w.mixer.closeAndClear()
 	w.mixer.mtx.Unlock()
 	w.mixer.wg.Wait()
-	w.mixing.Store(false)
 	for _, acct := range nativeAccounts {
 		if err = w.wallet.LockAccount(w.ctx, acct); err != nil {
 			return fmt.Errorf("error locking native wallet account %q: %w", acct, err)
