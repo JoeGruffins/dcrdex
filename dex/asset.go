@@ -64,7 +64,7 @@ func init() {
 // while test networks support setting a custom value during build.
 func LockTimeTaker(network Network) time.Duration {
 	if network == Mainnet {
-		return 3 * time.Minute // TESTING ONLY - revert before release
+		return 20 * time.Minute // TESTING ONLY - revert before release
 	}
 	return testLockTime.taker
 }
@@ -74,7 +74,7 @@ func LockTimeTaker(network Network) time.Duration {
 // while test networks support setting a custom value during build.
 func LockTimeMaker(network Network) time.Duration {
 	if network == Mainnet {
-		return defaultlockTimeMaker
+		return 6 * time.Minute // TESTING ONLY - revert before release
 	}
 	return testLockTime.maker
 }
