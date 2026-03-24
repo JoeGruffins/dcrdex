@@ -1210,7 +1210,21 @@ func testContractGasForAsset(
 		log.Infof("Temp client approval used %d gas", receipt.GasUsed)
 		result.RawApprovals = append(result.RawApprovals, receipt.GasUsed)
 
-		// Approval from main client.
+		// Approval from main client. Some tokens (e.g. USDT on ETH)
+		// require the allowance to be zero before setting a new value.
+		// Zero-approve first to handle this case.
+		zeroApproveOpts, err := cl.txOpts(ctx, 0, g.Approve*2, maxFeeRate, tipRate, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error creating zero approve tx opts: %w", err)
+		}
+		zeroApproveTx, err := tc.approve(zeroApproveOpts, new(big.Int))
+		if err != nil {
+			return nil, fmt.Errorf("zero approve error: %w", err)
+		}
+		if err = waitForConfirmation(ctx, "zero-approve", cl, zeroApproveTx.Hash(), log); err != nil {
+			return nil, fmt.Errorf("error waiting for zero approve: %w", err)
+		}
+
 		mainApproveOpts, err := cl.txOpts(ctx, 0, g.Approve*2, maxFeeRate, tipRate, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating main approve tx opts: %w", err)
