@@ -865,6 +865,9 @@ type baseWallet struct {
 	swapCache   *broadcast.Cache[*swapCacheEntry]
 	redeemCache *broadcast.Cache[*redeemCacheEntry]
 	refundCache *broadcast.Cache[*refundCacheEntry]
+
+	simulateBroadcastFailure      atomic.Bool // testing: fail next broadcast once
+	simulatedBroadcastFailureOnce sync.Once
 }
 
 func (w *baseWallet) fallbackFeeRate() uint64 {
@@ -3981,6 +3984,12 @@ func (btc *baseWallet) Swap(ctx context.Context, swaps *asset.Swaps) ([]asset.Re
 		timestamp:  time.Now(),
 	})
 
+	// TESTING: Fail the first swap broadcast to exercise broadcast recovery.
+	btc.simulatedBroadcastFailureOnce.Do(func() {
+		btc.log.Warnf("TESTING: Simulating broadcast failure for swap %s to test recovery", txHash)
+		btc.simulateBroadcastFailure.Store(true)
+	})
+
 	// Refund txs prepared and signed. Can now broadcast the swap(s).
 	_, err = btc.broadcastTx(ctx, msgTx)
 	if err != nil {
@@ -6170,6 +6179,9 @@ type refundCacheEntry struct {
 func (e *refundCacheEntry) Stamp() time.Time { return e.timestamp }
 
 func (btc *baseWallet) broadcastTx(ctx context.Context, signedTx *wire.MsgTx) (*chainhash.Hash, error) {
+	if btc.simulateBroadcastFailure.CompareAndSwap(true, false) {
+		return nil, fmt.Errorf("simulated broadcast failure for testing")
+	}
 	txHash, err := btc.node.SendRawTransaction(ctx, signedTx)
 	if err != nil {
 		if broadcast.IsAlreadyBroadcastErr(err) {
