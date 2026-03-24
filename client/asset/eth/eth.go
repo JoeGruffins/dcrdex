@@ -1546,6 +1546,16 @@ func testContractGasForAsset(
 	}
 	if len(result.RawRedeems) > 0 {
 		result.Redeem = recommendedGas(result.RawRedeems[0])
+		if isToken {
+			// The gas test redeems to a wallet that already holds the
+			// token, so storage slots are warm. In real trades the
+			// redeemer may have never held the token, adding ~35k gas
+			// for the SSTORE zero-to-nonzero and cold access costs.
+			// Apply the buffer so the recommended value is safe for
+			// first-time recipients.
+			const coldStorageBuffer = 35_000
+			result.Redeem = recommendedGas(result.RawRedeems[0] + coldStorageBuffer)
+		}
 		summary.WriteString(fmt.Sprintf("  Redeem:    %d\n", result.Redeem))
 		if len(result.RawRedeems) > 1 {
 			result.RedeemAdd = recommendedGas(avgDiff(result.RawRedeems))
