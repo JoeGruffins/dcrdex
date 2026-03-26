@@ -35,8 +35,9 @@ if %errorlevel% neq 0 (
 echo Build completed successfully.
 
 :MSI
+set "WIX_DEFINES=XmrEnabled=%XMR_ENABLED%;CrossCompiled=%SKIP_BUILD%"
 echo Building MSI
-dotnet build --property:Platform=x64 --configuration Release --output build\msi -noWarn:WIX1076 -p:DefineConstants="XmrEnabled=%XMR_ENABLED%^;CrossCompiled=%SKIP_BUILD%" windows\windows-msi\BisonWallet_Installer.wixproj
+dotnet build --property:Platform=x64 --configuration Release --output build\msi -noWarn:WIX1076 -p:DefineConstants="%WIX_DEFINES%" windows\windows-msi\BisonWallet_Installer.wixproj
 echo MSI built in build\msi
 
 echo Signing %exeFile%
